@@ -43,6 +43,11 @@ export function initWsListeners() {
   if (initialized) return
   initialized = true
 
+  // 每次（重新）連上 WebSocket 後端都會先送 hello；斷線期間錯過的推播（例如未登記車輛）要靠這裡補抓
+  wsHub.on('hello', () => {
+    void refreshPendingAndAlerts()
+  })
+
   wsHub.on('access_event', (raw) => {
     const ev = raw as unknown as AccessEvent
     if (ev.decision === 'PENDING') {
