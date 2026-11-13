@@ -1,7 +1,10 @@
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">黑名單管理</h2>
+      <div>
+        <div class="page-eyebrow">Blacklist</div>
+        <h2 class="page-title">黑名單管理</h2>
+      </div>
       <div class="page-actions">
         <el-input v-model="q" placeholder="搜尋車牌 / 原因" clearable style="width: 220px" @input="load" />
         <el-button type="danger" @click="openForm()">加入黑名單</el-button>

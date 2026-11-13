@@ -6,32 +6,36 @@
         <span class="lane-meta">{{ DIRECTION_LABEL[lane.direction] }} · {{ VEHICLE_TYPE_LABEL[lane.vehicle_types] }}</span>
       </div>
       <div class="lane-actions">
-        <el-button size="small" :icon="Iphone" @click="emit('show-qr', lane)">手機鏡頭</el-button>
-        <el-button type="primary" size="small" :icon="Unlock" @click="manualOpenGate">手動開閘</el-button>
+        <el-button size="small" :icon="Smartphone" @click="emit('show-qr', lane)">手機鏡頭</el-button>
+        <el-button type="primary" size="small" :icon="LockOpen" @click="manualOpenGate">手動開閘</el-button>
       </div>
     </header>
 
     <div class="stream-wrap">
       <img :src="`/api/lanes/${lane.id}/stream`" class="stream-img" :alt="`${lane.name} 即時畫面`" />
+      <!-- 離線時蓋掉後端產生的「NO SIGNAL」測試圖，改成較安靜的提示 -->
+      <div v-if="!lane.status?.online" class="stream-offline">
+        <el-icon :size="26"><VideoOff /></el-icon>
+        <span class="offline-title">等待影像訊號</span>
+        <span class="offline-sub">尚未連接攝影機，可改用手機鏡頭</span>
+      </div>
       <div class="stream-vignette" aria-hidden="true" />
       <div class="stream-info top">
-        <span class="live-chip" :class="lane.status?.online ? 'on' : 'off'">
+        <!-- 離線時中央已有「等待影像訊號」，這裡只在連線時顯示 LIVE -->
+        <span v-if="lane.status?.online" class="live-chip on">
           <span class="live-dot" />
-          {{ lane.status?.online ? `LIVE · ${lane.status.capture_fps ?? '—'} fps` : '離線 / 未接攝影機' }}
+          LIVE · {{ lane.status.capture_fps ?? '—' }} fps
         </span>
-      </div>
-      <div class="stream-info bottom">
-        <span class="stream-lane">{{ lane.name }}</span>
       </div>
       <transition name="fade-rise">
         <div v-if="banner" class="gate-banner" :class="banner.ok ? 'ok' : 'err'" role="status">
-          <el-icon><component :is="banner.ok ? CircleCheck : CircleClose" /></el-icon>
+          <el-icon><component :is="banner.ok ? CircleCheck : CircleX" /></el-icon>
           {{ banner.text }}
         </div>
       </transition>
     </div>
 
-    <div class="lane-tools">
+    <div v-if="testToolsEnabled" class="lane-tools">
       <el-input
         v-model="simPlate"
         size="small"
@@ -45,7 +49,7 @@
         accept="image/*"
         :http-request="(opt: UploadRequestOptions) => uploadRecognize(opt.file)"
       >
-        <el-button size="small" text :icon="Picture">上傳圖片辨識</el-button>
+        <el-button size="small" text :icon="Image">上傳圖片辨識</el-button>
       </el-upload>
     </div>
   </article>
@@ -54,11 +58,13 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ElMessage, type UploadRequestOptions } from 'element-plus'
-import { CircleCheck, CircleClose, Iphone, Picture, Unlock } from '@element-plus/icons-vue'
+import { CircleCheck, CircleX, Image, LockOpen, Smartphone, VideoOff } from 'lucide-vue-next'
+import { useTestTools } from '../composables/useTestTools'
 import { api, DECISION_LABEL, DIRECTION_LABEL, VEHICLE_TYPE_LABEL, type AccessEvent, type Lane } from '../api'
 import { appState } from '../store'
 
 const props = defineProps<{ lane: Lane; nowTick: number }>()
+const { testToolsEnabled } = useTestTools()
 const emit = defineEmits<{
   (e: 'show-qr', lane: Lane): void
   /** 車道上有動作（開閘、模擬、上傳辨識）後，請父層重新載入資料 */
@@ -122,26 +128,12 @@ async function uploadRecognize(file: File) {
 <style scoped>
 .lane-card {
   position: relative;
-  padding: 18px;
+  padding: 22px 24px 20px;
   border-radius: var(--cg-radius-lg);
-  border: 1px solid var(--cg-border);
+  border: 1px solid var(--cg-hairline);
   background: var(--cg-surface);
   box-shadow: var(--cg-shadow-sm);
   overflow: hidden;
-}
-/* 左側細色條：車道連線狀態 */
-.lane-card::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 18px;
-  bottom: 18px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--cg-border-strong);
-}
-.lane-card.online::before {
-  background: var(--cg-success);
 }
 .lane-head {
   display: flex;
@@ -149,14 +141,14 @@ async function uploadRecognize(file: File) {
   align-items: center;
   flex-wrap: wrap;
   gap: var(--cg-space-2);
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .lane-title h3 {
   margin: 0;
   font-family: var(--cg-font-serif);
-  font-size: var(--cg-text-lg);
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
 }
 .lane-meta {
   font-size: var(--cg-text-xs);
@@ -181,6 +173,28 @@ async function uploadRecognize(file: File) {
   object-fit: contain;
   display: block;
 }
+.stream-offline {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: radial-gradient(80% 70% at 50% 40%, color-mix(in srgb, var(--cg-media-bg) 80%, var(--cg-navy)) 0%, var(--cg-media-bg) 100%);
+  color: var(--cg-side-text-dim);
+}
+.offline-title {
+  margin-top: 6px;
+  font-family: var(--cg-font-serif);
+  font-size: var(--cg-text-lg);
+  letter-spacing: 0.2em;
+  color: var(--cg-overlay-text);
+}
+.offline-sub {
+  font-size: var(--cg-text-xs);
+  letter-spacing: 0.08em;
+}
 .stream-vignette {
   position: absolute;
   inset: 0;
@@ -200,23 +214,15 @@ async function uploadRecognize(file: File) {
   top: 10px;
   justify-content: flex-end;
 }
-.stream-info.bottom {
-  bottom: 10px;
-}
-.stream-lane {
-  font-size: var(--cg-text-sm);
-  letter-spacing: 0.1em;
-  color: var(--cg-overlay-text);
-}
 .live-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 3px 10px;
   border-radius: var(--cg-radius-pill);
-  font-family: var(--cg-font-mono);
-  font-size: var(--cg-text-xs);
-  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.12em;
   color: var(--cg-overlay-text);
   background: var(--cg-overlay);
   backdrop-filter: blur(6px);
@@ -270,7 +276,9 @@ async function uploadRecognize(file: File) {
   display: flex;
   gap: var(--cg-space-2);
   align-items: center;
-  margin-top: 14px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--cg-hairline);
   flex-wrap: wrap;
 }
 .sim-input {

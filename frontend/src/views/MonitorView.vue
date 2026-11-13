@@ -2,10 +2,11 @@
   <div>
     <div class="page-header">
       <div>
+        <div class="page-eyebrow">Live Monitor</div>
         <h2 class="page-title">即時監控</h2>
       </div>
       <div class="page-actions">
-        <el-button :icon="Refresh" @click="loadAll">重新整理</el-button>
+        <el-button :icon="RefreshCw" @click="loadAll">重新整理</el-button>
       </div>
     </div>
 
@@ -131,7 +132,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Refresh } from '@element-plus/icons-vue'
+import { RefreshCw } from 'lucide-vue-next'
 import DecisionMark from '../components/DecisionMark.vue'
 import EmptyState from '../components/EmptyState.vue'
 import LaneCard from '../components/LaneCard.vue'
@@ -179,9 +180,9 @@ function categoryTag(c: string) {
 }
 
 const statItems = computed(() => [
-  { label: '今日進場', value: stats.today_in, tone: 'accent' },
+  { label: '今日進場', value: stats.today_in, tone: '' },
   { label: '今日離場', value: stats.today_out, tone: '' },
-  { label: '目前在場車輛', value: stats.onsite_vehicles, tone: 'success' },
+  { label: '目前在場車輛', value: stats.onsite_vehicles, tone: '' },
   {
     label: '在場／逾時訪客',
     value: stats.onsite_visitors,
@@ -210,65 +211,65 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 今日統計：單一面板 + 髮絲分隔線（帳冊式），取代六張各自帶色條的小卡 */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: var(--cg-space-3);
-  margin-bottom: var(--cg-space-5);
+  margin-bottom: var(--cg-space-6);
+  border-radius: var(--cg-radius-lg);
+  border: 1px solid var(--cg-hairline);
+  background: var(--cg-surface);
+  box-shadow: var(--cg-shadow-sm);
+  overflow: hidden;
 }
 .stat-card {
   position: relative;
-  padding: 18px 20px 16px;
-  border-radius: var(--cg-radius-lg);
-  border: 1px solid var(--cg-border);
-  background: var(--cg-surface);
-  box-shadow: var(--cg-shadow-sm);
+  padding: 22px 24px 20px;
+  border: none;
+  border-left: 1px solid var(--cg-hairline);
+  background: transparent;
   text-align: left;
   font: inherit;
   color: inherit;
-  overflow: hidden;
-  transition: box-shadow var(--cg-duration) var(--cg-ease), transform var(--cg-duration) var(--cg-ease),
-    border-color var(--cg-duration) var(--cg-ease);
+  transition: background-color var(--cg-duration) var(--cg-ease);
 }
-.stat-card::before {
-  content: "";
-  position: absolute;
-  left: 20px;
-  top: 0;
-  width: 24px;
-  height: 2px;
-  border-radius: 0 0 2px 2px;
-  background: var(--cg-border-strong);
+.stat-card:first-child {
+  border-left: none;
 }
-.stat-card.accent::before { background: var(--cg-gold); }
-.stat-card.success::before { background: var(--cg-success); }
-.stat-card.danger::before { background: var(--cg-danger); }
 .stat-card.clickable {
   cursor: pointer;
 }
 .stat-card.clickable:hover {
-  border-color: var(--cg-gold);
-  box-shadow: var(--cg-shadow-md);
-  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--cg-gold) 6%, var(--cg-surface));
 }
 .stat-label {
   font-size: var(--cg-text-xs);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
   color: var(--cg-text-3);
 }
 .stat-val {
-  margin-top: 8px;
-  font-family: var(--cg-font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 30px;
-  font-weight: 600;
-  line-height: 1.1;
+  margin-top: 10px;
+  font-family: var(--cg-font-serif);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1;
   color: var(--cg-text);
 }
-.stat-card.success .stat-val { color: var(--cg-success-text); }
 .stat-card.danger .stat-val { color: var(--cg-danger-text); }
+/* 有異常的格子：底部細色線提示，不整格上色 */
+.stat-card.danger::after {
+  content: "";
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 0;
+  height: 2px;
+  background: var(--cg-danger);
+  opacity: 0.7;
+}
 .stat-extra {
-  margin-left: 6px;
+  margin-left: 8px;
   font-family: var(--cg-font-sans);
   font-size: var(--cg-text-sm);
   font-weight: 500;
@@ -306,6 +307,13 @@ onUnmounted(() => {
 @media (max-width: 1279px) {
   .stat-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* 換成兩列時：每列第一格不畫左線，第二列加上分隔線 */
+  .stat-card:nth-child(3n + 1) {
+    border-left: none;
+  }
+  .stat-card:nth-child(n + 4) {
+    border-top: 1px solid var(--cg-hairline);
   }
 }
 @media (max-width: 1100px) {

@@ -21,7 +21,7 @@
 
   --cg-radius-sm: 6px;
   --cg-radius-md: 10px;
-  --cg-radius-lg: 16px;
+  --cg-radius-lg: 14px;
   --cg-radius-pill: 999px;
 
   --cg-space-1: 4px;
@@ -31,27 +31,29 @@
   --cg-space-5: 24px;
   --cg-space-6: 32px;
 
-  --cg-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --cg-duration: 200ms;
+  --cg-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --cg-duration: 220ms;
 
   /* ---- 色彩：light ---- */
-  --cg-bg: #f4f1ec; /* 暖灰背景 */
+  /* 中性色取暖石色系（stone），比冷灰更接近飯店 / 豪宅物業的質感 */
+  --cg-bg: #f3f1ed; /* 象牙暖灰背景 */
   --cg-surface: #ffffff;
-  --cg-surface-2: #faf8f4;
-  --cg-surface-sunken: #ece8e1;
-  --cg-border: #e4ded3;
-  --cg-border-strong: #cfc6b6;
+  --cg-surface-2: #faf9f6;
+  --cg-surface-sunken: #eceae5;
+  --cg-border: #e6e1d8;
+  --cg-border-strong: #d2cbbf;
+  --cg-hairline: rgb(28 25 23 / 0.08); /* 卡片外框：髮絲線，取代米色實線 */
 
-  --cg-text: #1a2130; /* 墨黑 */
-  --cg-text-2: #444c5c;
-  --cg-text-3: #5c6371; /* 次要說明文字，AA 4.5:1 以上（含凹陷底） */
+  --cg-text: #1c1917; /* 石墨黑 */
+  --cg-text-2: #44403c;
+  --cg-text-3: #69625a; /* 次要說明文字，AA 4.5:1 以上（含凹陷底） */
   --cg-text-inverse: #ffffff;
 
-  --cg-navy: #1d2f52; /* 主色：深海軍藍 */
-  --cg-navy-deep: #0f1a2e;
-  --cg-gold: #c9a86a; /* 香檳金：裝飾 / 指示條 / 圖示，不用於小字 */
-  --cg-gold-soft: #e9dcc0;
-  --cg-gold-text: #7f6128; /* 金色系文字，AA 4.5:1 以上 */
+  --cg-navy: #1b2a44; /* 主色：墨藍（比原本更深、更不飽和） */
+  --cg-navy-deep: #0e1626;
+  --cg-gold: #b8955a; /* 香檳金：裝飾 / 指示條 / 圖示，不用於小字；降低黃度避免顯廉價 */
+  --cg-gold-soft: #ece2cf;
+  --cg-gold-text: #7d5f2a; /* 金色系文字，AA 4.5:1 以上 */
 
   /* 狀態色：fill 用於白字按鈕/色條，text 用於淡底上的文字 */
   --cg-success: #2c7656;
@@ -67,12 +69,13 @@
   --cg-mix: #ffffff;
 
   /* 側邊欄（兩種模式皆為深色） */
-  --cg-side-bg: #0f1a2e;
-  --cg-side-bg-2: #16233b;
-  --cg-side-border: #23314c;
-  --cg-side-text: #c3c9d4;
-  --cg-side-text-dim: #8e98aa;
-  --cg-side-active-bg: #1c2b47;
+  --cg-side-bg: #0e1626;
+  --cg-side-bg-2: #121c30;
+  --cg-side-border: rgb(255 255 255 / 0.07);
+  --cg-side-text: #c2c7d0;
+  --cg-side-text-dim: #8d96a6;
+  --cg-side-active-bg: rgb(255 255 255 / 0.06);
+  --cg-side-danger-text: #f2c4bd; /* 深色側邊欄上的淡紅字（側邊欄兩種模式都是深色） */
 
   /* 影像區（串流、截圖底） */
   --cg-media-bg: #0b0f17;
@@ -87,10 +90,11 @@
   --cg-qr-ink: #111418;
   --cg-qr-bg: #ffffff;
 
-  --cg-shadow-sm: 0 1px 2px rgb(26 33 48 / 0.06), 0 1px 1px rgb(26 33 48 / 0.04);
-  --cg-shadow-md: 0 6px 18px rgb(26 33 48 / 0.08), 0 2px 4px rgb(26 33 48 / 0.04);
-  --cg-shadow-lg: 0 18px 48px rgb(15 26 46 / 0.18);
-  --cg-focus-ring: 0 0 0 3px rgb(201 168 106 / 0.45);
+  /* 分層柔和陰影：近處一層極淡、遠處一層大範圍負擴散，避免「一圈灰霧」的廉價感 */
+  --cg-shadow-sm: 0 1px 2px rgb(28 25 23 / 0.04), 0 4px 16px -6px rgb(28 25 23 / 0.06);
+  --cg-shadow-md: 0 1px 2px rgb(28 25 23 / 0.05), 0 16px 36px -12px rgb(28 25 23 / 0.14);
+  --cg-shadow-lg: 0 2px 6px rgb(14 22 38 / 0.08), 0 36px 72px -20px rgb(14 22 38 / 0.32);
+  --cg-focus-ring: 0 0 0 3px rgb(184 149 90 / 0.4);
 
   color-scheme: light;
 }
@@ -103,6 +107,7 @@ html.dark,
   --cg-surface-sunken: #0f141e;
   --cg-border: #263043;
   --cg-border-strong: #364259;
+  --cg-hairline: rgb(255 255 255 / 0.07);
 
   --cg-text: #ebe8e2;
   --cg-text-2: #c0c5cf;
@@ -111,8 +116,9 @@ html.dark,
 
   --cg-navy: #3f5c8f;
   --cg-navy-deep: #0a101b;
-  --cg-gold: #c9a86a;
+  --cg-gold: #c4a46c;
   --cg-gold-soft: #3a3222;
+  --cg-on-gold: #1a1408; /* 金底上的文字（深色模式主要按鈕） */
   --cg-gold-text: #d8bd86;
 
   --cg-success: #2f7a59;
@@ -127,13 +133,11 @@ html.dark,
   --cg-mix: #141b27;
 
   --cg-side-bg: #090e17;
-  --cg-side-bg-2: #0f1522;
-  --cg-side-border: #1c2536;
-  --cg-side-active-bg: #172238;
+  --cg-side-bg-2: #0d1320;
 
-  --cg-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-  --cg-shadow-md: 0 8px 22px rgb(0 0 0 / 0.38);
-  --cg-shadow-lg: 0 22px 56px rgb(0 0 0 / 0.55);
+  --cg-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --cg-shadow-md: 0 1px 2px rgb(0 0 0 / 0.3), 0 16px 36px -12px rgb(0 0 0 / 0.5);
+  --cg-shadow-lg: 0 36px 72px -20px rgb(0 0 0 / 0.7);
 
   color-scheme: dark;
 }
@@ -177,6 +181,13 @@ html.dark,
   --el-color-danger: var(--cg-danger);
   --el-color-error: var(--cg-danger);
   --el-color-info: var(--cg-info);
+}
+
+/* 深色模式主色改用香檳金：墨藍在深底上只剩 Element 預設藍的觀感 */
+html.dark,
+.theme-dark {
+  --el-color-primary: var(--cg-gold);
+  --el-checkbox-checked-icon-color: var(--cg-on-gold);
 }
 
 /* 各狀態色的淺色階（Element 用於 hover、plain 按鈕、tag 底色） */
@@ -259,6 +270,9 @@ body {
 .text-sm { font-size: var(--cg-text-sm); }
 .text-xs { font-size: var(--cg-text-xs); }
 .mono { font-family: var(--cg-font-mono); font-variant-numeric: tabular-nums; }
+
+/* Lucide 細線圖示：統一線寬，與細字重的標題一致 */
+.lucide { stroke-width: 1.6; }
 html.dark .text-primary { color: var(--cg-text); }
 
 /* ==========================================================================
@@ -277,20 +291,30 @@ html.dark .text-primary { color: var(--cg-text); }
 .page-title {
   margin: 0;
   font-family: var(--cg-font-serif);
-  font-size: var(--cg-text-2xl);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
   color: var(--cg-text);
 }
 
-.page-title::after {
+/* 標題上方的英文小標：細字距大寫 + 前導金線，取代原本的短底線 */
+.page-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--cg-gold-text);
+}
+.page-eyebrow::before {
   content: "";
-  display: block;
-  width: 28px;
-  height: 2px;
-  margin-top: var(--cg-space-2);
+  width: 20px;
+  height: 1px;
   background: var(--cg-gold);
-  border-radius: 2px;
 }
 
 .page-actions {
@@ -311,13 +335,13 @@ html.dark .text-primary { color: var(--cg-text); }
   min-width: 84px;
   padding: 3px 10px;
   border-radius: 5px;
-  border: 1.5px solid var(--cg-plate-edge);
-  box-shadow: inset 0 0 0 2px var(--cg-plate-bg), inset 0 0 0 3px rgb(17 20 24 / 0.18), var(--cg-shadow-sm);
+  border: 1px solid var(--cg-plate-edge);
+  box-shadow: inset 0 0 0 2px var(--cg-plate-bg), inset 0 0 0 3px rgb(17 20 24 / 0.12);
   background: linear-gradient(180deg, var(--cg-plate-bg) 0%, color-mix(in srgb, var(--cg-plate-bg) 92%, var(--cg-plate-ink)) 100%);
   font-family: var(--cg-font-mono);
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--cg-text-md);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   color: var(--cg-plate-ink);
   line-height: 1.3;
   white-space: nowrap;
@@ -327,8 +351,9 @@ html.dark .text-primary { color: var(--cg-text); }
   min-width: 168px;
   font-size: 28px;
   padding: 8px 18px;
-  border-width: 2.5px;
+  border-width: 1.5px;
   border-radius: 8px;
+  box-shadow: inset 0 0 0 3px var(--cg-plate-bg), inset 0 0 0 4px rgb(17 20 24 / 0.14), var(--cg-shadow-sm);
 }
 
 /* ==========================================================================
@@ -337,8 +362,8 @@ html.dark .text-primary { color: var(--cg-text); }
 
 .el-card {
   --el-card-border-radius: var(--cg-radius-lg);
-  --el-card-padding: 20px;
-  border-color: var(--cg-border);
+  --el-card-padding: 24px;
+  border-color: var(--cg-hairline);
   background: var(--cg-surface);
   transition: box-shadow var(--cg-duration) var(--cg-ease), border-color var(--cg-duration) var(--cg-ease);
 }
@@ -348,12 +373,13 @@ html.dark .text-primary { color: var(--cg-text); }
 }
 
 .el-card__header {
-  border-bottom-color: var(--cg-border);
+  border-bottom-color: var(--cg-hairline);
 }
 
+/* 表頭只留底線，不要整塊灰底，列與列之間用髮絲線 */
 .el-table {
-  --el-table-border-color: var(--cg-border);
-  --el-table-header-bg-color: var(--cg-surface-2);
+  --el-table-border-color: var(--cg-hairline);
+  --el-table-header-bg-color: transparent;
   --el-table-header-text-color: var(--cg-text-3);
   --el-table-row-hover-bg-color: color-mix(in srgb, var(--cg-gold) 9%, var(--cg-surface));
   --el-table-tr-bg-color: var(--cg-surface);
@@ -365,12 +391,13 @@ html.dark .text-primary { color: var(--cg-text); }
 .el-table th.el-table__cell {
   font-weight: 500;
   font-size: var(--cg-text-xs);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
 }
 
 .el-table .el-table__cell {
-  padding: 12px 0;
+  padding: 14px 0;
 }
+
 
 .el-table--small .el-table__cell {
   padding: 8px 0;
@@ -395,15 +422,49 @@ html.dark .text-primary { color: var(--cg-text); }
 
 .el-button {
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
   transition: background-color var(--cg-duration) var(--cg-ease), border-color var(--cg-duration) var(--cg-ease),
     color var(--cg-duration) var(--cg-ease), box-shadow var(--cg-duration) var(--cg-ease);
 }
 
 .el-tag {
   border-radius: var(--cg-radius-pill);
+  border-color: transparent;
   font-weight: 500;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+}
+
+/* 預設按鈕：白底髮絲線，hover 轉金色字，不用 Element 預設的藍色 hover */
+.el-button:not(.el-button--primary, .el-button--success, .el-button--warning, .el-button--danger, .el-button--info, .is-text, .is-link) {
+  --el-button-border-color: var(--cg-border-strong);
+  --el-button-hover-text-color: var(--cg-gold-text);
+  --el-button-hover-border-color: var(--cg-gold);
+  --el-button-hover-bg-color: var(--cg-surface);
+  --el-button-active-border-color: var(--cg-gold);
+}
+html.dark .el-button:not(.el-button--primary, .el-button--success, .el-button--warning, .el-button--danger, .el-button--info, .is-text, .is-link) {
+  --el-button-hover-bg-color: var(--cg-surface-2);
+}
+/* 深色模式的金底元件：文字改深色，維持 AA 對比 */
+html.dark .el-button--primary:not(.is-plain, .is-link, .is-text),
+.theme-dark .el-button--primary:not(.is-plain, .is-link, .is-text) {
+  --el-button-text-color: var(--cg-on-gold);
+  --el-button-hover-text-color: var(--cg-on-gold);
+  --el-button-active-text-color: var(--cg-on-gold);
+  --el-button-disabled-text-color: color-mix(in srgb, var(--cg-on-gold) 60%, transparent);
+}
+html.dark .el-radio-button,
+.theme-dark .el-radio-button {
+  --el-radio-button-checked-text-color: var(--cg-on-gold);
+}
+html.dark .el-date-table td.current:not(.disabled) .el-date-table-cell__text,
+html.dark .el-date-table td.start-date .el-date-table-cell__text,
+html.dark .el-date-table td.end-date .el-date-table-cell__text {
+  color: var(--cg-on-gold);
+}
+/* 主要按鈕：墨藍 + 細微上緣高光 */
+.el-button--primary:not(.is-plain, .is-link, .is-text) {
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), 0 1px 2px rgb(14 22 38 / 0.2);
 }
 
 /* tag 文字用 *-text token，淡底上維持 AA 對比 */
@@ -478,6 +539,13 @@ html.dark .el-date-table td.today .el-date-table-cell__text {
 .filter-bar .el-form--inline .el-form-item {
   margin-right: var(--cg-space-4);
   margin-bottom: var(--cg-space-2);
+}
+/* 篩選欄位統一寬度，避免一排寬窄不一的表單感 */
+.filter-bar .filter-control {
+  width: 140px;
+}
+.filter-bar .filter-date {
+  width: 260px;
 }
 .filter-bar .el-form-item__label {
   font-size: var(--cg-text-xs);

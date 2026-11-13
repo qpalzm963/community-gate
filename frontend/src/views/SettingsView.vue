@@ -1,7 +1,10 @@
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">系統設定</h2>
+      <div>
+        <div class="page-eyebrow">Settings</div>
+        <h2 class="page-title">系統設定</h2>
+      </div>
     </div>
 
     <el-tabs v-model="tab">
@@ -63,6 +66,15 @@
             </el-form-item>
             <el-form-item>
               <el-button type="primary" :loading="savingSettings" @click="saveSettings">儲存設定（即時生效）</el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+
+        <el-card shadow="never" style="max-width: 720px; margin-top: 16px">
+          <el-form label-width="240px">
+            <el-form-item label="在即時監控顯示測試辨識工具">
+              <el-switch v-model="testToolsEnabled" />
+              <span class="text-muted text-sm" style="margin-left: 12px">只套用在這台電腦的瀏覽器</span>
             </el-form-item>
           </el-form>
         </el-card>
@@ -184,6 +196,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MobileCameraQrDialog from '../components/MobileCameraQrDialog.vue'
+import { useTestTools } from '../composables/useTestTools'
 import {
   api,
   DIRECTION_LABEL,
@@ -196,6 +209,7 @@ import {
 } from '../api'
 
 const tab = ref('lanes')
+const { testToolsEnabled } = useTestTools()
 const lanes = ref<Lane[]>([])
 const drivers = ref<Array<{ value: string; label: string }>>([])
 const settingMeta = ref<SettingMeta[]>([])

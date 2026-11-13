@@ -8,7 +8,7 @@
   >
     <template #header>
       <div class="dlg-head">
-        <span class="dlg-kicker"><el-icon><WarningFilled /></el-icon>待確認</span>
+        <span class="dlg-kicker"><el-icon><TriangleAlert /></el-icon>待確認</span>
         <span class="dlg-title">未登記車輛</span>
       </div>
     </template>
@@ -17,14 +17,17 @@
          若讓上一筆畫面淡出，警衛可能看著 A 車卻對 B 車開閘 -->
     <transition name="fade-rise" leave-active-class="leave-instant">
       <div v-if="currentEvent" :key="currentEvent.id">
-        <section class="evidence">
-          <div class="media">
-            <img v-if="currentEvent.snapshot_url" :src="currentEvent.snapshot_url" class="snap-img" alt="現場截圖" />
-            <div v-else class="snap-img snap-empty">無現場截圖</div>
-            <span class="media-tag">{{ currentEvent.lane_name || '車道' }} · {{ DIRECTION_LABEL[currentEvent.direction] || currentEvent.direction }}</span>
+        <!-- 沒有現場截圖時不留空白影像框，改成車牌在左、事件資訊在右的橫向排版 -->
+        <section class="evidence" :class="{ 'no-snap': !currentEvent.snapshot_url }">
+          <div v-if="currentEvent.snapshot_url" class="media">
+            <img :src="currentEvent.snapshot_url" class="snap-img" alt="現場截圖" />
+            <span class="media-tag">{{ laneLabel }}</span>
           </div>
           <div class="facts">
-            <div class="plate-badge lg">{{ currentEvent.plate_display || currentEvent.plate }}</div>
+            <div class="plate-block">
+              <div class="plate-badge lg">{{ currentEvent.plate_display || currentEvent.plate }}</div>
+              <div v-if="!currentEvent.snapshot_url" class="lane-line">{{ laneLabel }}</div>
+            </div>
             <img v-if="currentEvent.plate_crop_url" :src="currentEvent.plate_crop_url" class="crop-img" alt="車牌裁切" />
             <dl class="fact-list">
               <div><dt>車種</dt><dd>{{ VEHICLE_TYPE_LABEL[currentEvent.vehicle_type] || '未知' }}</dd></div>
@@ -124,7 +127,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { WarningFilled } from '@element-plus/icons-vue'
+import { TriangleAlert } from 'lucide-vue-next'
 import {
   api,
   DIRECTION_LABEL,
@@ -152,6 +155,12 @@ const visitorForm = reactive({
 })
 
 const currentEvent = computed(() => appState.pendingEvents.find((e) => !dismissedIds.value.has(e.id)) ?? null)
+
+const laneLabel = computed(() => {
+  const ev = currentEvent.value
+  if (!ev) return ''
+  return `${ev.lane_name || '車道'} · ${DIRECTION_LABEL[ev.direction] || ev.direction}`
+})
 
 watch(currentEvent, async (ev) => {
   if (!ev) return
@@ -267,11 +276,26 @@ async function submit() {
   border-radius: var(--cg-radius-md);
   background: var(--cg-media-bg);
 }
-.snap-empty {
-  display: grid;
-  place-items: center;
-  color: var(--cg-side-text-dim);
+.evidence.no-snap {
+  grid-template-columns: minmax(0, 1fr);
+}
+.evidence.no-snap .facts {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--cg-space-6);
+}
+.evidence.no-snap .fact-list {
+  flex: 1;
+}
+.plate-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cg-space-2);
+}
+.lane-line {
   font-size: var(--cg-text-sm);
+  letter-spacing: 0.12em;
+  color: var(--cg-text-3);
 }
 .media-tag {
   position: absolute;
@@ -310,7 +334,7 @@ async function submit() {
   justify-content: space-between;
   gap: var(--cg-space-3);
   padding-bottom: 8px;
-  border-bottom: 1px dashed var(--cg-border);
+  border-bottom: 1px solid var(--cg-hairline);
 }
 .fact-list dt {
   font-size: var(--cg-text-sm);
@@ -357,6 +381,10 @@ async function submit() {
 @media (max-width: 820px) {
   .evidence {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .evidence.no-snap .facts {
+    flex-direction: column;
+    gap: var(--cg-space-3);
   }
 }
 </style>

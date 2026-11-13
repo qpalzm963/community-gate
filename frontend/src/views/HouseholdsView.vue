@@ -1,7 +1,10 @@
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">住戶與車輛白名單</h2>
+      <div>
+        <div class="page-eyebrow">Residents</div>
+        <h2 class="page-title">住戶與車輛白名單</h2>
+      </div>
       <div class="page-actions">
         <el-input v-model="q" placeholder="搜尋戶別 / 住戶 / 車牌" clearable style="width: 240px" @input="load" />
         <el-button type="primary" @click="openHousehold()">新增戶別</el-button>

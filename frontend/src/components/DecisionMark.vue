@@ -7,7 +7,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { CircleCheck, CircleClose, Clock } from '@element-plus/icons-vue'
+import { CircleCheck, CircleX, Clock } from 'lucide-vue-next'
 import { DECISION_LABEL } from '../api'
 
 const props = defineProps<{ decision: string }>()
@@ -18,7 +18,7 @@ const tone = computed(() => {
   return 'pending'
 })
 
-const icon = computed(() => ({ allow: CircleCheck, deny: CircleClose, pending: Clock })[tone.value])
+const icon = computed(() => ({ allow: CircleCheck, deny: CircleX, pending: Clock })[tone.value])
 </script>
 
 <style scoped>

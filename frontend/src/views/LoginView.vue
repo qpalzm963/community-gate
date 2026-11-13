@@ -3,16 +3,20 @@
     <div class="backdrop" aria-hidden="true">
       <div class="glow glow-a" />
       <div class="glow glow-b" />
-      <svg class="skyline" viewBox="0 0 1200 260" preserveAspectRatio="xMidYMax slice">
-        <path
-          d="M0 260 V190 H60 V140 H110 V170 H150 V96 H210 V150 H250 V120 H300 V180 H350 V70 H420 V160 H470 V130 H520 V200 H580 V110 H640 V60 H700 V150 H760 V120 H800 V170 H860 V90 H930 V150 H980 V130 H1030 V190 H1090 V140 H1140 V180 H1200 V260 Z"
-        />
+      <!-- 細線拱門：社區大門意象，取代方塊天際線剪影 -->
+      <svg class="arch" viewBox="0 0 520 640" fill="none">
+        <path d="M20 640 V260 A240 240 0 0 1 500 260 V640" />
+        <path d="M60 640 V270 A200 200 0 0 1 460 270 V640" />
+        <path d="M110 640 V290 A150 150 0 0 1 410 290 V640" class="inner" />
+        <path d="M160 640 V300 M210 640 V250 M260 640 V232 M310 640 V250 M360 640 V300" class="bars" />
+        <path d="M110 420 H410" class="bars" />
       </svg>
     </div>
 
     <main class="login-wrap">
       <section class="brand-panel">
         <BrandCrest :name="appState.communityName" :size="64" />
+        <div class="brand-eyebrow">Residential Access Console</div>
         <h1 class="brand-name">{{ appState.communityName }}</h1>
         <p class="brand-tagline">安心歸家，從每一次進出開始</p>
         <ul class="brand-points">
@@ -27,16 +31,14 @@
         <p class="card-sub">請使用管理處核發的帳號</p>
         <el-form label-position="top" size="large" @submit.prevent="submit">
           <el-form-item label="帳號">
-            <el-input v-model="form.username" placeholder="請輸入帳號" autocomplete="username" autofocus :prefix-icon="UserIcon" />
+            <el-input v-model="form.username" autocomplete="username" autofocus />
           </el-form-item>
           <el-form-item label="密碼">
             <el-input
               v-model="form.password"
               type="password"
               show-password
-              placeholder="請輸入密碼"
               autocomplete="current-password"
-              :prefix-icon="Lock"
             />
           </el-form-item>
           <el-button type="primary" native-type="submit" :loading="loading" class="submit-btn">登入</el-button>
@@ -52,7 +54,6 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Lock, User as UserIcon } from '@element-plus/icons-vue'
 import BrandCrest from '../components/BrandCrest.vue'
 import { api, type User } from '../api'
 import { appState } from '../store'
@@ -114,14 +115,22 @@ async function submit() {
   bottom: -260px;
   background: color-mix(in srgb, var(--cg-navy) 80%, transparent);
 }
-.skyline {
+/* 拱門只放在品牌區後方（品牌欄中心 = 視窗中心 - 232px），不跨到登入卡 */
+.arch {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  height: 34vh;
-  fill: color-mix(in srgb, var(--cg-gold) 7%, transparent);
+  left: calc(50% - 542px);
+  bottom: -40px;
+  width: 620px;
+  height: auto;
+  stroke: var(--cg-gold);
+  stroke-width: 1;
+  opacity: 0.16;
+}
+.arch .inner {
+  opacity: 0.7;
+}
+.arch .bars {
+  opacity: 0.45;
 }
 
 .login-wrap {
@@ -135,19 +144,27 @@ async function submit() {
   margin: 0 auto;
   padding: 48px 0;
 }
+.brand-eyebrow {
+  margin-top: 28px;
+  font-size: 11px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--cg-gold);
+}
 .brand-name {
-  margin: 24px 0 10px;
+  margin: 10px 0 12px;
   font-family: var(--cg-font-serif);
-  font-size: var(--cg-text-3xl);
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   color: var(--cg-text-inverse);
 }
 .brand-tagline {
   margin: 0 0 28px;
   font-size: var(--cg-text-lg);
-  letter-spacing: 0.16em;
-  color: var(--cg-gold);
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  color: var(--cg-side-text);
 }
 .brand-points {
   list-style: none;
@@ -172,10 +189,10 @@ async function submit() {
 
 /* 玻璃質感登入卡片 */
 .login-card {
-  padding: 36px 32px 32px;
-  border-radius: var(--cg-radius-lg);
+  padding: 44px 40px 40px;
+  border-radius: 18px;
   background: color-mix(in srgb, var(--cg-surface) 97%, transparent);
-  border: 1px solid color-mix(in srgb, var(--cg-gold) 30%, transparent);
+  border: 1px solid var(--cg-hairline);
   box-shadow: var(--cg-shadow-lg);
   backdrop-filter: blur(18px) saturate(140%);
   color: var(--cg-text);
@@ -183,21 +200,22 @@ async function submit() {
 .card-title {
   margin: 0;
   font-family: var(--cg-font-serif);
-  font-size: var(--cg-text-xl);
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
 }
 .card-sub {
-  margin: 6px 0 24px;
+  margin: 8px 0 28px;
+  letter-spacing: 0.04em;
   font-size: var(--cg-text-sm);
   color: var(--cg-text-3);
 }
 .submit-btn {
   width: 100%;
   margin-top: 8px;
-  height: 46px;
-  font-size: var(--cg-text-lg);
-  letter-spacing: 0.3em;
+  height: 48px;
+  font-size: var(--cg-text-md);
+  letter-spacing: 0.4em;
 }
 
 .login-foot {
@@ -210,6 +228,11 @@ async function submit() {
 }
 
 @media (max-width: 860px) {
+  .arch {
+    left: 50%;
+    width: min(620px, 92vw);
+    transform: translateX(-50%);
+  }
   .login-wrap {
     grid-template-columns: minmax(0, 420px);
     justify-content: center;
