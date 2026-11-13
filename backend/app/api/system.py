@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
 import socket
 
@@ -227,23 +228,33 @@ async def lane_stream(lane_id: int, request: Request, _: User = Depends(current_
     return StreamingResponse(gen(), media_type=f"multipart/x-mixed-replace; boundary={boundary}", headers={"Cache-Control": "no-store"})
 
 
+def _is_usable_ip(ip: str) -> bool:
+    """手機能否連到這個位址：排除本機迴路、未指定位址與 169.254.x.x（Link-Local / APIPA）。"""
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    return not (addr.is_loopback or addr.is_link_local or addr.is_unspecified)
+
+
 def get_lan_ip(preferred_host: str | None = None) -> str:
     """自動偵測區域網路 IP，避免挑到 127.0.0.1 或 169.254.x.x (Link-Local)"""
-    if (
-        preferred_host
-        and preferred_host not in ("localhost", "127.0.0.1", "0.0.0.0")
-        and not preferred_host.startswith("169.254.")
-    ):
-        return preferred_host
+    if preferred_host and preferred_host != "localhost":
+        try:
+            if _is_usable_ip(str(ipaddress.ip_address(preferred_host))):
+                return preferred_host
+        except ValueError:
+            # 不是 IP 而是網域名稱（例如反向代理的公網網域），直接採用
+            return preferred_host
 
-    # 1. 嘗試透過連線探測常用路由以找出對外網卡
+    # 1. 嘗試透過連線探測常用路由以找出對外網卡（UDP connect 不會真的送出封包）
     for target in ("8.8.8.8", "1.1.1.1", "10.255.255.255"):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect((target, 80))
             ip = s.getsockname()[0]
             s.close()
-            if ip and not ip.startswith("127.") and not ip.startswith("169.254."):
+            if _is_usable_ip(ip):
                 return ip
         except Exception:
             continue
@@ -252,15 +263,13 @@ def get_lan_ip(preferred_host: str | None = None) -> str:
     candidates: list[str] = []
     try:
         _, _, ips = socket.gethostbyname_ex(socket.gethostname())
-        for ip in ips:
-            if not ip.startswith("127.") and not ip.startswith("169.254."):
-                candidates.append(ip)
+        candidates = [ip for ip in ips if _is_usable_ip(ip)]
     except Exception:
         pass
 
-    # 優先返回典型的 private IP 網段
+    # 優先返回私有網段（192.168/16、172.16/12、10/8），公網 IP 在社區內網通常不是要給手機連的那張網卡
     for ip in candidates:
-        if ip.startswith(("192.168.", "10.", "172.")):
+        if ipaddress.ip_address(ip).is_private:
             return ip
 
     return candidates[0] if candidates else "127.0.0.1"

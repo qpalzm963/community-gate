@@ -53,9 +53,9 @@
         </el-collapse-item>
       </el-collapse>
 
-      <div v-if="isLinkLocalIp" class="tips-box" style="margin-top: 10px; background: #fffbe6; border-color: #ffe58f; color: #d46b08;">
+      <div v-if="isLinkLocalIp" class="tips-box tip-warn">
         <strong>⚠️ 偵測到不可路由的內部 IP ({{ serverHost }})：</strong>
-        <p style="margin: 4px 0 0; font-size: 13px;">
+        <p>
           此位址為電腦虛擬/USB 連結專用，手機通常無法連入。請展開上方「調整主機 IP」手動修改為電腦的 Wi-Fi 區網 IP。
         </p>
       </div>
@@ -128,7 +128,13 @@ const selectedScheme = ref('http')
 const customUrl = ref('')
 
 const isPhoneConnected = computed(() => Boolean(props.lane?.status?.is_push))
-const isLinkLocalIp = computed(() => Boolean(serverHost.value && (serverHost.value.startsWith('169.254.') || serverHost.value === '127.0.0.1')))
+// 手機連不到的位址：本機迴路、未指定位址、169.254.x.x（Link-Local / APIPA）
+function isUnreachableHost(host: string): boolean {
+  const h = host.trim().toLowerCase()
+  return h === 'localhost' || h === '0.0.0.0' || h.startsWith('127.') || h.startsWith('169.254.')
+}
+
+const isLinkLocalIp = computed(() => Boolean(serverHost.value && isUnreachableHost(serverHost.value)))
 
 async function onOpen() {
   if (!props.lane) return
@@ -146,16 +152,18 @@ async function onOpen() {
     }>(`/api/lanes/${props.lane.id}/camera-token`)
 
     token.value = res.token
-    
-    // 若瀏覽器目前是透過區網 IP (非 localhost/127.0.0.1/169.254) 連線，優先使用該 IP
+
+    // 瀏覽器目前用的網址手機也連得到時（區網 IP 或反向代理的公網網域），主機與連接埠都沿用它。
+    // 連接埠不能改用後端看到的值：經過反向代理時那是內部埠（如 8000），手機從外面連不到；
+    // 瀏覽器網址沒寫連接埠代表用預設埠，這裡留空即可。
     const currentHost = window.location.hostname
-    if (currentHost && currentHost !== 'localhost' && currentHost !== '127.0.0.1' && !currentHost.startsWith('169.254.')) {
+    if (currentHost && !isUnreachableHost(currentHost)) {
       serverHost.value = currentHost
+      serverPort.value = window.location.port
     } else {
       serverHost.value = res.lan_ip
+      serverPort.value = String(res.port || '')
     }
-
-    serverPort.value = String(window.location.port || res.port || '')
     selectedScheme.value = window.location.protocol.replace(':', '') || res.scheme || 'http'
 
     await rebuildUrl()
@@ -171,14 +179,19 @@ async function rebuildUrl() {
   let host = (serverHost.value || window.location.hostname).trim()
   let port = (serverPort.value || '').trim()
 
-  // 若使用者在主機欄位直接貼了含 port 的字串 (例：192.168.1.100:8000)
-  if (host.includes(':')) {
-    const parts = host.split(':')
-    host = parts[0]
-    if (parts[1]) port = parts[1]
+  // 若使用者在主機欄位直接貼了含 port 的字串 (例：192.168.1.100:8000)。
+  // 只處理恰好一個冒號的情況，IPv6 位址本身含多個冒號，不能拆
+  const colonParts = host.split(':')
+  if (colonParts.length === 2) {
+    host = colonParts[0]
+    if (colonParts[1]) port = colonParts[1]
+  } else if (colonParts.length > 2 && !host.startsWith('[')) {
+    host = `[${host}]`
   }
 
-  const portStr = port && port !== '80' && port !== '443' ? `:${port}` : ''
+  // 只有和協定預設埠相同時才省略（http:80、https:443），https 配 80 仍要寫出來
+  const defaultPort = selectedScheme.value === 'https' ? '443' : '80'
+  const portStr = port && port !== defaultPort ? `:${port}` : ''
   const url = `${selectedScheme.value}://${host}${portStr}/mobile-cam?lane=${props.lane.id}&token=${encodeURIComponent(token.value)}`
   customUrl.value = url
 
@@ -301,6 +314,13 @@ function onClose() {
 
 .tips-box p {
   margin: 0;
+}
+
+.tip-warn {
+  margin-top: 10px;
+  background: #fffbe6;
+  border: 1px solid #ffe58f;
+  color: #d46b08;
 }
 
 .tip-https {
