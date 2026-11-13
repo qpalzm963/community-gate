@@ -5,7 +5,7 @@ import logging
 from datetime import datetime
 
 import numpy as np
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ..db import SessionLocal
@@ -240,25 +240,31 @@ def manual_decision(
         raise AccessError("action 必須為 allow 或 deny")
     db = SessionLocal()
     try:
-        ev = db.get(AccessEvent, event_id)
-        if ev is None:
+        if db.get(AccessEvent, event_id) is None:
             raise AccessError("事件不存在")
-        if ev.decision != EventDecision.PENDING.value:
-            raise AccessError("此事件已處理")
-        at = now()
-        ev.operator_id = operator_id
-        ev.decided_at = at
         visitor = None
+        if action == "allow" and visitor_id is not None:
+            visitor = db.get(Visitor, visitor_id)
+            if visitor is None:
+                raise AccessError("訪客不存在")
+        at = now()
+        new_decision = EventDecision.DENY if action == "deny" else EventDecision.MANUAL_ALLOW
+        # 條件式更新搶單：兩位警衛同時處理時只有一個 UPDATE 會命中，避免重複開閘與重複在場紀錄
+        claimed = db.execute(
+            update(AccessEvent)
+            .where(AccessEvent.id == event_id, AccessEvent.decision == EventDecision.PENDING.value)
+            .values(decision=new_decision.value, operator_id=operator_id, decided_at=at)
+            .execution_options(synchronize_session=False)
+        ).rowcount
+        if claimed != 1:
+            db.rollback()
+            raise AccessError("此事件已處理")
+        ev = db.get(AccessEvent, event_id, populate_existing=True)
         if action == "deny":
-            ev.decision = EventDecision.DENY.value
             ev.note = note or "警衛拒絕"
         else:
-            ev.decision = EventDecision.MANUAL_ALLOW.value
             ev.note = note or "警衛放行一次"
-            if visitor_id is not None:
-                visitor = db.get(Visitor, visitor_id)
-                if visitor is None:
-                    raise AccessError("訪客不存在")
+            if visitor is not None:
                 ev.category = EventCategory.VISITOR.value
                 ev.ref_visitor_id = visitor.id
                 ev.household_unit = visitor.household.unit_no if visitor.household else ""
