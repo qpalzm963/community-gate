@@ -1,7 +1,10 @@
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">訪客管理</h2>
+      <div>
+        <div class="page-eyebrow">Visitors</div>
+        <h2 class="page-title">訪客管理</h2>
+      </div>
       <div class="page-actions">
         <el-input v-model="q" placeholder="搜尋姓名 / 車牌 / 戶別" clearable style="width: 220px" @input="load" />
         <el-button type="primary" @click="openForm(undefined, 'RESERVATION')">預約登記</el-button>

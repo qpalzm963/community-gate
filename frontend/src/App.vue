@@ -28,12 +28,12 @@
         </div>
         <el-dropdown trigger="click" placement="top-end" @command="onUserCommand">
           <el-button text circle class="user-more" aria-label="帳號選單">
-            <el-icon><MoreFilled /></el-icon>
+            <el-icon><Ellipsis /></el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="password" :icon="Lock">修改密碼</el-dropdown-item>
-              <el-dropdown-item command="logout" :icon="SwitchButton" divided>登出</el-dropdown-item>
+              <el-dropdown-item command="logout" :icon="LogOut" divided>登出</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -43,12 +43,12 @@
     <el-container direction="vertical" class="main-col">
       <header class="topbar">
         <div class="clock">
-          <span class="clock-time mono">{{ clockTime }}</span>
+          <span class="clock-time">{{ clockTime }}</span>
           <span class="clock-date">{{ clockDate }}</span>
         </div>
         <div class="topbar-right">
           <span v-if="appState.pendingEvents.length" class="status-chip warn" role="status">
-            <el-icon><BellFilled /></el-icon>待處理 {{ appState.pendingEvents.length }}
+            <el-icon><BellRing /></el-icon>待處理 {{ appState.pendingEvents.length }}
           </span>
           <span class="status-chip" :class="wsState.connected ? 'ok' : 'err'" role="status">
             <span class="status-dot" />{{ wsState.connected ? '即時連線正常' : '連線中斷，重新連線中' }}
@@ -57,7 +57,7 @@
             <el-button circle class="theme-btn" :aria-label="`切換外觀，目前為${themeLabel}`" @click="cycleTheme">
               <el-icon>
                 <Moon v-if="themePref === 'dark'" />
-                <Sunny v-else-if="themePref === 'light'" />
+                <Sun v-else-if="themePref === 'light'" />
                 <Monitor v-else />
               </el-icon>
             </el-button>
@@ -99,20 +99,20 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   Bell,
-  BellFilled,
-  Document,
+  BellRing,
+  Cctv,
+  Ellipsis,
+  FileText,
   House,
   Lock,
+  LogOut,
   Monitor,
   Moon,
-  MoreFilled,
-  Setting,
-  Sunny,
-  SwitchButton,
-  User as UserIcon,
-  VideoCamera,
-  Warning,
-} from '@element-plus/icons-vue'
+  Settings,
+  ShieldBan,
+  Sun,
+  Users,
+} from 'lucide-vue-next'
 import { api, setUnauthorizedHandler, type User } from './api'
 import { appState, initWsListeners, loadPublicInfo, refreshPendingAndAlerts } from './store'
 import { wsHub, wsState } from './ws'
@@ -129,13 +129,13 @@ interface MenuItem {
 }
 
 const menu: MenuItem[] = [
-  { path: '/', label: '即時監控', icon: VideoCamera, badge: () => appState.pendingEvents.length, badgeTone: 'warn' },
+  { path: '/', label: '即時監控', icon: Cctv, badge: () => appState.pendingEvents.length, badgeTone: 'warn' },
   { path: '/households', label: '住戶與車輛', icon: House, badge: () => 0 },
-  { path: '/visitors', label: '訪客管理', icon: UserIcon, badge: () => 0 },
-  { path: '/blacklist', label: '黑名單', icon: Warning, badge: () => 0 },
-  { path: '/events', label: '進出紀錄', icon: Document, badge: () => 0 },
+  { path: '/visitors', label: '訪客管理', icon: Users, badge: () => 0 },
+  { path: '/blacklist', label: '黑名單', icon: ShieldBan, badge: () => 0 },
+  { path: '/events', label: '進出紀錄', icon: FileText, badge: () => 0 },
   { path: '/alerts', label: '警示中心', icon: Bell, badge: () => appState.unackAlerts, badgeTone: 'danger' },
-  { path: '/settings', label: '系統設定', icon: Setting, badge: () => 0 },
+  { path: '/settings', label: '系統設定', icon: Settings, badge: () => 0 },
 ]
 
 const { preference: themePref, label: themeLabel, cycle: cycleTheme } = useTheme()
@@ -335,21 +335,26 @@ async function savePassword() {
 .side-menu :deep(.el-menu-item.is-active .el-icon) {
   color: var(--cg-gold);
 }
+/* 側邊欄計數：細框低彩度，不用整顆高飽和圓點 */
 .menu-badge {
   margin-left: auto;
-  min-width: 20px;
+  min-width: 22px;
   height: 20px;
-  padding: 0 6px;
+  padding: 0 7px;
   border-radius: var(--cg-radius-pill);
-  font-size: var(--cg-text-xs);
-  line-height: 20px;
+  font-size: 11px;
+  line-height: 18px;
   text-align: center;
-  font-weight: 600;
-  color: var(--cg-text-inverse);
-  background: var(--cg-danger);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--cg-side-danger-text);
+  border: 1px solid color-mix(in srgb, var(--cg-side-danger-text) 35%, transparent);
+  background: color-mix(in srgb, var(--cg-danger) 18%, transparent);
 }
 .menu-badge.warn {
-  background: var(--cg-warning);
+  color: var(--cg-gold);
+  border-color: color-mix(in srgb, var(--cg-gold) 45%, transparent);
+  background: color-mix(in srgb, var(--cg-gold) 12%, transparent);
 }
 
 .user-footer {
@@ -422,10 +427,12 @@ async function savePassword() {
   align-items: center;
   justify-content: space-between;
   gap: var(--cg-space-4);
-  padding: 12px 28px;
-  background: color-mix(in srgb, var(--cg-bg) 86%, transparent);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--cg-border);
+  height: 64px;
+  box-sizing: border-box;
+  padding: 0 32px;
+  background: color-mix(in srgb, var(--cg-bg) 82%, transparent);
+  backdrop-filter: saturate(140%) blur(14px);
+  border-bottom: 1px solid var(--cg-hairline);
 }
 .clock {
   display: flex;
@@ -433,54 +440,59 @@ async function savePassword() {
   gap: var(--cg-space-3);
 }
 .clock-time {
-  font-size: var(--cg-text-xl);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 22px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
   color: var(--cg-text);
 }
 .clock-date {
+  padding-left: var(--cg-space-3);
+  border-left: 1px solid var(--cg-border-strong);
   font-size: var(--cg-text-sm);
   color: var(--cg-text-3);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: var(--cg-space-2);
+  gap: var(--cg-space-4);
 }
+/* 頁首狀態：安靜的文字 + 小圓點；只有待處理用金色細框提示 */
 .status-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 12px;
-  border-radius: var(--cg-radius-pill);
-  border: 1px solid var(--cg-border);
-  background: var(--cg-surface);
+  gap: 8px;
+  height: 32px;
+  padding: 0 4px;
   font-size: var(--cg-text-sm);
+  letter-spacing: 0.04em;
   color: var(--cg-text-2);
   white-space: nowrap;
 }
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: currentColor;
 }
 .status-chip.ok {
-  color: var(--cg-success-text);
+  color: var(--cg-text-3);
+}
+.status-chip.ok .status-dot {
+  color: var(--cg-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cg-success) 18%, transparent);
 }
 .status-chip.err {
   color: var(--cg-danger-text);
-  border-color: color-mix(in srgb, var(--cg-danger) 40%, var(--cg-border));
 }
 .status-chip.warn {
-  color: var(--cg-warning-text);
-  border-color: color-mix(in srgb, var(--cg-warning) 40%, var(--cg-border));
-  background: color-mix(in srgb, var(--cg-warning) 8%, var(--cg-surface));
-}
-.status-chip.ok .status-dot {
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cg-success) 22%, transparent);
+  padding: 0 14px;
+  border-radius: var(--cg-radius-pill);
+  border: 1px solid color-mix(in srgb, var(--cg-gold) 55%, transparent);
+  background: color-mix(in srgb, var(--cg-gold) 8%, transparent);
+  color: var(--cg-gold-text);
+  font-weight: 500;
 }
 .theme-btn {
   --el-button-bg-color: var(--cg-surface);
@@ -492,7 +504,7 @@ async function savePassword() {
 }
 
 .main-area {
-  padding: 28px;
+  padding: 36px 40px 48px;
   overflow-x: hidden;
 }
 

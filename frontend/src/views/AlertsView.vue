@@ -1,7 +1,10 @@
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">警示中心</h2>
+      <div>
+        <div class="page-eyebrow">Alerts</div>
+        <h2 class="page-title">警示中心</h2>
+      </div>
       <div class="page-actions">
         <el-radio-group v-model="filterAck" @change="load">
           <el-radio-button :value="false">未處理</el-radio-button>

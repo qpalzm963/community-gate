@@ -1,10 +1,24 @@
 <template>
   <div>
     <div class="page-header">
-      <h2 class="page-title">進出紀錄查詢</h2>
+      <div>
+        <div class="page-eyebrow">Access Log</div>
+        <h2 class="page-title">進出紀錄查詢</h2>
+      </div>
       <div class="page-actions">
-        <el-button @click="doExport('csv')">匯出 CSV</el-button>
-        <el-button type="primary" @click="doExport('xlsx')">匯出 Excel (.xlsx)</el-button>
+        <!-- 匯出不是這頁的主要操作：合併成一顆次要按鈕 + 選單 -->
+        <el-dropdown trigger="click" @command="doExport">
+          <el-button :icon="Download">
+            匯出
+            <el-icon class="el-icon--right"><ChevronDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="xlsx">Excel（.xlsx）</el-dropdown-item>
+              <el-dropdown-item command="csv">CSV</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
@@ -19,30 +33,31 @@
             end-placeholder="結束"
             value-format="YYYY-MM-DD"
             clearable
+            class="filter-date"
           />
         </el-form-item>
         <el-form-item label="車牌">
-          <el-input v-model="filters.plate" placeholder="關鍵字" clearable style="width: 130px" @keyup.enter="search" />
+          <el-input v-model="filters.plate" placeholder="關鍵字" clearable class="filter-control" @keyup.enter="search" />
         </el-form-item>
         <el-form-item label="車道">
-          <el-select v-model="filters.lane_id" clearable placeholder="全部" style="width: 120px">
+          <el-select v-model="filters.lane_id" clearable placeholder="全部" class="filter-control">
             <el-option v-for="l in lanes" :key="l.id" :label="l.name" :value="l.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="車種">
-          <el-select v-model="filters.vehicle_type" clearable placeholder="全部" style="width: 100px">
+          <el-select v-model="filters.vehicle_type" clearable placeholder="全部" class="filter-control">
             <el-option value="CAR" label="汽車" />
             <el-option value="MOTO" label="機車" />
             <el-option value="UNKNOWN" label="未知" />
           </el-select>
         </el-form-item>
         <el-form-item label="類別">
-          <el-select v-model="filters.category" clearable placeholder="全部" style="width: 110px">
+          <el-select v-model="filters.category" clearable placeholder="全部" class="filter-control">
             <el-option v-for="(lbl, k) in CATEGORY_LABEL" :key="k" :label="lbl" :value="k" />
           </el-select>
         </el-form-item>
         <el-form-item label="結果">
-          <el-select v-model="filters.decision" clearable placeholder="全部" style="width: 110px">
+          <el-select v-model="filters.decision" clearable placeholder="全部" class="filter-control">
             <el-option v-for="(lbl, k) in DECISION_LABEL" :key="k" :label="lbl" :value="k" />
           </el-select>
         </el-form-item>
@@ -57,35 +72,35 @@
       <el-skeleton v-if="!loaded" animated :rows="6" />
       <el-table v-else :data="items" stripe>
         <template #empty><EmptyState title="查無符合條件的紀錄" description="試著調整日期或篩選條件" /></template>
-        <el-table-column label="時間" width="165">
+        <el-table-column label="時間" width="164">
           <template #default="{ row }">{{ fmtDateTime(row.occurred_at) }}</template>
         </el-table-column>
-        <el-table-column prop="lane_name" label="車道" width="110" />
-        <el-table-column label="方向" width="70">
+        <el-table-column prop="lane_name" label="車道" width="88" />
+        <el-table-column label="方向" width="60">
           <template #default="{ row }">{{ DIRECTION_LABEL[row.direction] }}</template>
         </el-table-column>
-        <el-table-column label="車牌" width="130">
+        <el-table-column label="車牌" width="120">
           <template #default="{ row }">
             <span v-if="row.plate_display" class="plate-badge">{{ row.plate_display }}</span>
             <span v-else class="text-muted">—</span>
           </template>
         </el-table-column>
-        <el-table-column label="車種" width="75">
+        <el-table-column label="車種" width="60">
           <template #default="{ row }">{{ VEHICLE_TYPE_LABEL[row.vehicle_type] }}</template>
         </el-table-column>
-        <el-table-column label="類別" width="90">
+        <el-table-column label="類別" width="80">
           <template #default="{ row }">{{ CATEGORY_LABEL[row.category] }}</template>
         </el-table-column>
-        <el-table-column label="處理結果" width="120">
+        <el-table-column label="處理結果" width="110">
           <template #default="{ row }"><DecisionMark :decision="row.decision" /></template>
         </el-table-column>
-        <el-table-column prop="household_unit" label="戶別" width="100" />
-        <el-table-column label="信心" width="70">
+        <el-table-column prop="household_unit" label="戶別" width="70" />
+        <el-table-column label="信心" width="60">
           <template #default="{ row }">{{ row.confidence ? `${(row.confidence * 100).toFixed(0)}%` : '—' }}</template>
         </el-table-column>
-        <el-table-column prop="operator_name" label="操作人" width="95" />
-        <el-table-column prop="note" label="備註" min-width="140" show-overflow-tooltip />
-        <el-table-column label="截圖" width="85" fixed="right">
+        <el-table-column prop="operator_name" label="操作人" width="80" />
+        <el-table-column prop="note" label="備註" min-width="96" show-overflow-tooltip />
+        <el-table-column label="截圖" width="68" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.snapshot_url" link type="primary" size="small" @click="preview = row">檢視</el-button>
             <span v-else class="text-muted">—</span>
@@ -119,6 +134,7 @@
 </template>
 
 <script setup lang="ts">
+import { ChevronDown, Download } from 'lucide-vue-next'
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   api,
@@ -201,7 +217,7 @@ function reset() {
   search()
 }
 
-function doExport(format: 'csv' | 'xlsx') {
+function doExport(format: string) {
   const qs = queryString(false)
   window.open(`/api/events/export?format=${format}${qs ? '&' + qs : ''}`, '_blank')
 }
