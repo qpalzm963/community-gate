@@ -61,274 +61,58 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useCameraCapture } from '../composables/useCameraCapture'
+import { useLanePush } from '../composables/useLanePush'
+
+const CATEGORY_TEXT: Record<string, string> = {
+  RESIDENT: '住戶車輛',
+  VISITOR: '登記訪客',
+  UNKNOWN: '未登記車輛',
+  BLACKLIST: '黑名單車輛',
+}
+
+const DECISION_TEXT: Record<string, string> = {
+  AUTO_ALLOW: '自動放行 (已開閘)',
+  MANUAL_ALLOW: '管理員放行',
+  DENY: '禁止進入',
+  PENDING: '等待警衛審核',
+}
 
 const route = useRoute()
 const laneId = computed(() => Number(route.query.lane || 1))
 const token = computed(() => String(route.query.token || ''))
-
 const laneName = ref('')
+
 const videoEl = ref<HTMLVideoElement | null>(null)
 const canvasEl = ref<HTMLCanvasElement | null>(null)
 
-const isConnected = ref(false)
-const hasCamera = ref(true)
-const hasTorch = ref(false)
-const isTorchOn = ref(false)
-const errorMsg = ref('')
-const errorDesc = ref('')
-const fps = ref(0)
-const facingMode = ref<'environment' | 'user'>('environment')
-
-const resolutions = [
-  { label: '720p', width: 1280, height: 720 },
-  { label: '480p', width: 854, height: 480 },
-  { label: '1080p', width: 1920, height: 1080 },
-]
-const resIndex = ref(0)
-const currentResolution = computed(() => resolutions[resIndex.value])
-
-interface RecognitionInfo {
-  plate: string
-  category: string
-  decision: string
-}
-const latestRecognition = ref<RecognitionInfo | null>(null)
-let recClearTimer: ReturnType<typeof setTimeout> | null = null
-
-let stream: MediaStream | null = null
-let ws: WebSocket | null = null
-let captureTimer: ReturnType<typeof setInterval> | null = null
-let fpsTimer: ReturnType<typeof setInterval> | null = null
-let frameCount = 0
-let wakeLockSentinel: any = null
+const { isConnected, fps, latestRecognition, start: startPush } = useLanePush(videoEl, canvasEl, laneId, token)
+const {
+  hasCamera,
+  hasTorch,
+  isTorchOn,
+  errorMsg,
+  errorDesc,
+  facingMode,
+  currentResolution,
+  start: initCamera,
+  toggleFacing: toggleCamera,
+  cycleResolution: toggleResolution,
+  toggleTorch,
+} = useCameraCapture(videoEl, startPush)
 
 function categoryLabel(cat: string) {
-  const map: Record<string, string> = {
-    RESIDENT: '住戶車輛',
-    VISITOR: '登記訪客',
-    UNKNOWN: '未登記車輛',
-    BLACKLIST: '黑名單車輛',
-  }
-  return map[cat] || cat || '車輛'
+  return CATEGORY_TEXT[cat] || cat || '車輛'
 }
 
 function decisionLabel(dec: string) {
-  const map: Record<string, string> = {
-    AUTO_ALLOW: '自動放行 (已開閘)',
-    MANUAL_ALLOW: '管理員放行',
-    DENY: '禁止進入',
-    PENDING: '等待警衛審核',
-  }
-  return map[dec] || dec || ''
-}
-
-async function initWakeLock() {
-  if ('wakeLock' in navigator) {
-    try {
-      wakeLockSentinel = await (navigator as any).wakeLock.request('screen')
-    } catch {
-      // ignore
-    }
-  }
-}
-
-async function initCamera() {
-  errorMsg.value = ''
-  errorDesc.value = ''
-
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-      errorMsg.value = '瀏覽器相機權限受限'
-      errorDesc.value = '手機瀏覽器規定必須在 HTTPS 安全連線下才可授權開啟攝影機。請使用 https:// 網址連線（若提示不安全，請按「進階 → 繼續前往」）。'
-    } else {
-      errorMsg.value = '無法啟用攝影機'
-      errorDesc.value = '此瀏覽器不支援相機存取功能。'
-    }
-    return
-  }
-
-  if (stream) {
-    stream.getTracks().forEach((t) => t.stop())
-    stream = null
-  }
-
-  try {
-    const res = currentResolution.value
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: facingMode.value },
-        width: { ideal: res.width },
-        height: { ideal: res.height },
-      },
-      audio: false,
-    })
-
-    if (videoEl.value) {
-      videoEl.value.srcObject = stream
-      await videoEl.value.play()
-    }
-
-    // 檢查是否有手電筒/補光燈功能
-    const track = stream.getVideoTracks()[0]
-    if (track) {
-      const caps = track.getCapabilities ? (track.getCapabilities() as any) : {}
-      hasTorch.value = Boolean(caps.torch)
-    }
-
-    startPushStream()
-  } catch (err: any) {
-    hasCamera.value = false
-    errorMsg.value = '無法取得相機權限'
-    errorDesc.value = err?.message || '請在手機瀏覽器設定中允許此網站存取相機。'
-  }
-}
-
-function toggleCamera() {
-  facingMode.value = facingMode.value === 'environment' ? 'user' : 'environment'
-  void initCamera()
-}
-
-function toggleResolution() {
-  resIndex.value = (resIndex.value + 1) % resolutions.length
-  void initCamera()
-}
-
-async function toggleTorch() {
-  if (!stream || !hasTorch.value) return
-  const track = stream.getVideoTracks()[0]
-  if (!track) return
-  isTorchOn.value = !isTorchOn.value
-  try {
-    await (track as any).applyConstraints({
-      advanced: [{ torch: isTorchOn.value }],
-    })
-  } catch {
-    isTorchOn.value = false
-  }
-}
-
-function connectWs() {
-  if (ws) {
-    ws.close()
-    ws = null
-  }
-
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const wsUrl = `${protocol}//${window.location.host}/ws/lanes/${laneId.value}/push?token=${encodeURIComponent(token.value)}`
-
-  ws = new WebSocket(wsUrl)
-  ws.binaryType = 'blob'
-
-  ws.onopen = () => {
-    isConnected.value = true
-  }
-
-  ws.onclose = () => {
-    isConnected.value = false
-    // 3 秒後自動重試連線
-    setTimeout(() => {
-      if (!ws || ws.readyState === WebSocket.CLOSED) {
-        connectWs()
-      }
-    }, 3000)
-  }
-
-  ws.onerror = () => {
-    isConnected.value = false
-  }
-
-  ws.onmessage = (e) => {
-    try {
-      const msg = JSON.parse(e.data)
-      if (msg.type === 'plate_confirmed') {
-        latestRecognition.value = {
-          plate: msg.plate,
-          category: msg.category,
-          decision: msg.decision,
-        }
-        // 手機震動反饋
-        if ('vibrate' in navigator) {
-          try {
-            navigator.vibrate([100, 50, 100])
-          } catch {}
-        }
-        if (recClearTimer) clearTimeout(recClearTimer)
-        recClearTimer = setTimeout(() => {
-          latestRecognition.value = null
-        }, 5000)
-      }
-    } catch {}
-  }
-}
-
-function startPushStream() {
-  connectWs()
-
-  if (captureTimer) clearInterval(captureTimer)
-  if (fpsTimer) clearInterval(fpsTimer)
-
-  // 每秒送約 10 張影格 (100ms)
-  captureTimer = setInterval(() => {
-    if (!isConnected.value || !ws || ws.readyState !== WebSocket.OPEN) return
-    const v = videoEl.value
-    const c = canvasEl.value
-    if (!v || !c || v.videoWidth === 0) return
-
-    // 依縮放比例繪製影格
-    const targetW = Math.min(v.videoWidth, 960)
-    const targetH = Math.round((v.videoHeight * targetW) / v.videoWidth)
-
-    if (c.width !== targetW || c.height !== targetH) {
-      c.width = targetW
-      c.height = targetH
-    }
-
-    const ctx = c.getContext('2d')
-    if (!ctx) return
-    ctx.drawImage(v, 0, 0, targetW, targetH)
-
-    c.toBlob(
-      (blob) => {
-        if (blob && ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(blob)
-          frameCount++
-        }
-      },
-      'image/jpeg',
-      0.72,
-    )
-  }, 100)
-
-  // 計算實際送出之 FPS
-  fpsTimer = setInterval(() => {
-    fps.value = frameCount
-    frameCount = 0
-  }, 1000)
+  return DECISION_TEXT[dec] || dec || ''
 }
 
 onMounted(() => {
-  void initWakeLock()
   void initCamera()
-})
-
-onUnmounted(() => {
-  if (captureTimer) clearInterval(captureTimer)
-  if (fpsTimer) clearInterval(fpsTimer)
-  if (recClearTimer) clearTimeout(recClearTimer)
-  if (stream) {
-    stream.getTracks().forEach((t) => t.stop())
-    stream = null
-  }
-  if (ws) {
-    ws.close()
-    ws = null
-  }
-  if (wakeLockSentinel) {
-    wakeLockSentinel.release()
-    wakeLockSentinel = null
-  }
 })
 </script>
 
