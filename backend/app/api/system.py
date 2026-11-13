@@ -227,15 +227,43 @@ async def lane_stream(lane_id: int, request: Request, _: User = Depends(current_
     return StreamingResponse(gen(), media_type=f"multipart/x-mixed-replace; boundary={boundary}", headers={"Cache-Control": "no-store"})
 
 
-def get_lan_ip() -> str:
+def get_lan_ip(preferred_host: str | None = None) -> str:
+    """自動偵測區域網路 IP，避免挑到 127.0.0.1 或 169.254.x.x (Link-Local)"""
+    if (
+        preferred_host
+        and preferred_host not in ("localhost", "127.0.0.1", "0.0.0.0")
+        and not preferred_host.startswith("169.254.")
+    ):
+        return preferred_host
+
+    # 1. 嘗試透過連線探測常用路由以找出對外網卡
+    for target in ("8.8.8.8", "1.1.1.1", "10.255.255.255"):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect((target, 80))
+            ip = s.getsockname()[0]
+            s.close()
+            if ip and not ip.startswith("127.") and not ip.startswith("169.254."):
+                return ip
+        except Exception:
+            continue
+
+    # 2. 嘗試從 hostname 列出所有候選 IP
+    candidates: list[str] = []
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("10.255.255.255", 1))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
+        _, _, ips = socket.gethostbyname_ex(socket.gethostname())
+        for ip in ips:
+            if not ip.startswith("127.") and not ip.startswith("169.254."):
+                candidates.append(ip)
     except Exception:
-        return "127.0.0.1"
+        pass
+
+    # 優先返回典型的 private IP 網段
+    for ip in candidates:
+        if ip.startswith(("192.168.", "10.", "172.")):
+            return ip
+
+    return candidates[0] if candidates else "127.0.0.1"
 
 
 @router.get("/api/lanes/{lane_id}/camera-token")
@@ -243,7 +271,7 @@ def lane_camera_token(lane_id: int, request: Request, _: User = Depends(current_
     lane = _get_lane(db, lane_id)
     cfg = get_config()
     token = create_camera_token(lane.id, cfg.get_secret_key())
-    lan_ip = get_lan_ip()
+    lan_ip = get_lan_ip(request.url.hostname)
     port = request.url.port or (443 if request.url.scheme == "https" else 80)
     scheme = request.url.scheme
     return {

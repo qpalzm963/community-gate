@@ -46,9 +46,19 @@
             <el-form-item label="主機 IP">
               <el-input v-model="serverHost" placeholder="例：192.168.1.100" @input="rebuildUrl" />
             </el-form-item>
+            <el-form-item label="連接埠">
+              <el-input v-model="serverPort" placeholder="預設留空或 8000" @input="rebuildUrl" />
+            </el-form-item>
           </el-form>
         </el-collapse-item>
       </el-collapse>
+
+      <div v-if="isLinkLocalIp" class="tips-box" style="margin-top: 10px; background: #fffbe6; border-color: #ffe58f; color: #d46b08;">
+        <strong>⚠️ 偵測到不可路由的內部 IP ({{ serverHost }})：</strong>
+        <p style="margin: 4px 0 0; font-size: 13px;">
+          此位址為電腦虛擬/USB 連結專用，手機通常無法連入。請展開上方「調整主機 IP」手動修改為電腦的 Wi-Fi 區網 IP。
+        </p>
+      </div>
 
       <!-- 說明提醒區塊 -->
       <div class="tips-box" :class="selectedScheme === 'https' ? 'tip-https' : 'tip-http'">
@@ -118,6 +128,7 @@ const selectedScheme = ref('http')
 const customUrl = ref('')
 
 const isPhoneConnected = computed(() => Boolean(props.lane?.status?.is_push))
+const isLinkLocalIp = computed(() => Boolean(serverHost.value && (serverHost.value.startsWith('169.254.') || serverHost.value === '127.0.0.1')))
 
 async function onOpen() {
   if (!props.lane) return
@@ -135,8 +146,16 @@ async function onOpen() {
     }>(`/api/lanes/${props.lane.id}/camera-token`)
 
     token.value = res.token
-    serverHost.value = res.lan_ip
-    serverPort.value = String(res.port)
+    
+    // 若瀏覽器目前是透過區網 IP (非 localhost/127.0.0.1/169.254) 連線，優先使用該 IP
+    const currentHost = window.location.hostname
+    if (currentHost && currentHost !== 'localhost' && currentHost !== '127.0.0.1' && !currentHost.startsWith('169.254.')) {
+      serverHost.value = currentHost
+    } else {
+      serverHost.value = res.lan_ip
+    }
+
+    serverPort.value = String(window.location.port || res.port || '')
     selectedScheme.value = window.location.protocol.replace(':', '') || res.scheme || 'http'
 
     await rebuildUrl()
@@ -149,8 +168,17 @@ async function onOpen() {
 
 async function rebuildUrl() {
   if (!props.lane || !token.value) return
-  const portStr = serverPort.value && serverPort.value !== '80' && serverPort.value !== '443' ? `:${serverPort.value}` : ''
-  const host = serverHost.value || window.location.hostname
+  let host = (serverHost.value || window.location.hostname).trim()
+  let port = (serverPort.value || '').trim()
+
+  // 若使用者在主機欄位直接貼了含 port 的字串 (例：192.168.1.100:8000)
+  if (host.includes(':')) {
+    const parts = host.split(':')
+    host = parts[0]
+    if (parts[1]) port = parts[1]
+  }
+
+  const portStr = port && port !== '80' && port !== '443' ? `:${port}` : ''
   const url = `${selectedScheme.value}://${host}${portStr}/mobile-cam?lane=${props.lane.id}&token=${encodeURIComponent(token.value)}`
   customUrl.value = url
 
