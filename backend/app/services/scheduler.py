@@ -9,7 +9,7 @@ from sqlalchemy import select, update
 
 from ..access.service import alert_dict, create_alert
 from ..db import SessionLocal
-from ..models import AccessEvent, AlertType, Visitor, VisitorStatus
+from ..models import AccessEvent, AlertType, Visitor, VisitorStatus, now
 from ..vision.plate import format_plate
 from . import snapshots
 from .events import bus
@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 def check_overstay(at: datetime | None = None) -> list[int]:
     """將授權時段 + 寬限已過、仍在場的訪客標記為逾時並產生警示，回傳訪客 id。"""
-    at = at or datetime.now()
+    at = at or now()
     grace = timedelta(minutes=int(settings_store.get("overstay_grace_min")))
     db = SessionLocal()
     flagged: list[int] = []

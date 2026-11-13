@@ -48,7 +48,7 @@ def list_visitors(
     db: Session = Depends(get_db),
 ):
     stmt = select(Visitor).options(selectinload(Visitor.household))
-    n = datetime.now()
+    n = now()
     if scope == "today":
         start = datetime.combine(n.date(), datetime.min.time())
         end = start + timedelta(days=1)
@@ -103,7 +103,7 @@ def update_visitor(vid: int, body: VisitorIn, _: User = Depends(current_user), d
     for k, val in body.model_dump().items():
         setattr(v, k, val)
     # 延長授權後，逾時狀態恢復為在場
-    if v.status == VisitorStatus.OVERSTAY.value and v.authorized_until > datetime.now():
+    if v.status == VisitorStatus.OVERSTAY.value and v.authorized_until > now():
         v.status = VisitorStatus.ENTERED.value
     db.commit()
     db.refresh(v)

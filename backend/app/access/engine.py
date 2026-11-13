@@ -18,6 +18,7 @@ from ..models import (
     VehicleType,
     Visitor,
     VisitorStatus,
+    now,
 )
 
 
@@ -75,7 +76,7 @@ def find_visitor(db: Session, plate: str, at: datetime, direction: str) -> Visit
 
 
 def decide(db: Session, plate: str, lane: Lane | None, at: datetime | None = None) -> Decision:
-    at = at or datetime.now()
+    at = at or now()
     direction = lane.direction if lane else LaneDirection.IN.value
 
     bl = find_blacklist(db, plate)
