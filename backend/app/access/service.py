@@ -24,6 +24,7 @@ from ..models import (
     now,
 )
 from ..services.events import bus
+from ..services import snapshots
 from ..services.snapshots import save_jpeg
 from ..vision.plate import format_plate
 from .engine import Decision, decide, lane_vehicle_type
@@ -175,11 +176,13 @@ def handle_detection(
     """處理一筆已確認的車牌辨識結果，回傳事件資料。"""
     at = at or now()
     db = SessionLocal()
+    saved: tuple[str, ...] = ()
     try:
         lane = db.get(Lane, lane_id)
         if lane is None:
             raise AccessError(f"車道 {lane_id} 不存在")
         d: Decision = decide(db, plate, lane, at)
+        saved = (save_jpeg(frame, f"L{lane.id}_full", at), save_jpeg(crop, f"L{lane.id}_plate", at))
         ev = AccessEvent(
             lane_id=lane.id,
             direction=lane.direction,
@@ -194,8 +197,8 @@ def handle_detection(
             note=d.message,
             occurred_at=at,
             decided_at=at if d.decision != EventDecision.PENDING else None,
-            snapshot_path=save_jpeg(frame, f"L{lane.id}_full", at),
-            plate_crop_path=save_jpeg(crop, f"L{lane.id}_plate", at),
+            snapshot_path=saved[0],
+            plate_crop_path=saved[1],
         )
         db.add(ev)
         db.flush()
@@ -217,6 +220,11 @@ def handle_detection(
         db.refresh(ev)
         data = event_dict(ev)
         alert_data = [alert_dict(a) for a in alerts]
+    except Exception:
+        # 事件沒寫進資料庫就不該留下截圖，否則會變成找不到對應紀錄的孤兒檔
+        db.rollback()
+        snapshots.remove(*saved)
+        raise
     finally:
         db.close()
 

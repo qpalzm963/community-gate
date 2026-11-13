@@ -40,6 +40,18 @@ def resolve(rel: str) -> Path | None:
     return p
 
 
+def remove(*rels: str) -> None:
+    """刪除指定的截圖檔（例如事件寫入失敗後的孤兒檔），忽略不存在的路徑。"""
+    for rel in rels:
+        p = resolve(rel)
+        if p is None:
+            continue
+        try:
+            p.unlink()
+        except OSError:
+            log.warning("刪除截圖失敗：%s", rel)
+
+
 def cleanup(retention_days: int, today: date | None = None) -> int:
     """刪除超過保存天數的日期資料夾，回傳刪除的資料夾數。"""
     today = today or date.today()
