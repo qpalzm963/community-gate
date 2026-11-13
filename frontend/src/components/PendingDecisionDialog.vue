@@ -1,45 +1,44 @@
 <template>
   <el-dialog
     :model-value="!!currentEvent"
-    title="未登記車輛待確認"
-    width="620px"
+    width="760px"
+    class="pending-dialog"
     :close-on-click-modal="false"
     @close="dismiss"
   >
-    <template v-if="currentEvent">
-      <el-alert
-        type="warning"
-        :closable="false"
-        style="margin-bottom: 14px"
-        :title="`${currentEvent.lane_name || '車道'}（${DIRECTION_LABEL[currentEvent.direction] || currentEvent.direction}）偵測到未登記車輛`"
-      />
-
-      <div class="pending-head">
-        <div class="plate-info">
-          <div class="plate-badge lg">{{ currentEvent.plate_display || currentEvent.plate }}</div>
-          <div class="meta">
-            <span>車種：{{ VEHICLE_TYPE_LABEL[currentEvent.vehicle_type] || '未知' }}</span>
-            <span>時間：{{ fmtDateTime(currentEvent.occurred_at) }}</span>
-            <span>信心值：{{ (currentEvent.confidence * 100).toFixed(0) }}%</span>
-          </div>
-          <img
-            v-if="currentEvent.plate_crop_url"
-            :src="currentEvent.plate_crop_url"
-            class="crop-img"
-            alt="車牌裁切"
-          />
-        </div>
-        <img
-          v-if="currentEvent.snapshot_url"
-          :src="currentEvent.snapshot_url"
-          class="snap-img"
-          alt="現場截圖"
-        />
+    <template #header>
+      <div class="dlg-head">
+        <span class="dlg-kicker"><el-icon><WarningFilled /></el-icon>待確認</span>
+        <span class="dlg-title">未登記車輛</span>
       </div>
+    </template>
 
-      <el-divider />
+    <transition name="fade-rise" mode="out-in">
+      <div v-if="currentEvent" :key="currentEvent.id">
+        <section class="evidence">
+          <div class="media">
+            <img v-if="currentEvent.snapshot_url" :src="currentEvent.snapshot_url" class="snap-img" alt="現場截圖" />
+            <div v-else class="snap-img snap-empty">無現場截圖</div>
+            <span class="media-tag">{{ currentEvent.lane_name || '車道' }} · {{ DIRECTION_LABEL[currentEvent.direction] || currentEvent.direction }}</span>
+          </div>
+          <div class="facts">
+            <div class="plate-badge lg">{{ currentEvent.plate_display || currentEvent.plate }}</div>
+            <img v-if="currentEvent.plate_crop_url" :src="currentEvent.plate_crop_url" class="crop-img" alt="車牌裁切" />
+            <dl class="fact-list">
+              <div><dt>車種</dt><dd>{{ VEHICLE_TYPE_LABEL[currentEvent.vehicle_type] || '未知' }}</dd></div>
+              <div><dt>時間</dt><dd class="mono">{{ fmtDateTime(currentEvent.occurred_at) }}</dd></div>
+              <div>
+                <dt>辨識信心</dt>
+                <dd class="mono" :class="{ 'text-warning': currentEvent.confidence < 0.85 }">
+                  {{ (currentEvent.confidence * 100).toFixed(0) }}%
+                </dd>
+              </div>
+            </dl>
+          </div>
+        </section>
 
-      <el-radio-group v-model="mode" style="margin-bottom: 14px">
+        <section class="decision">
+      <el-radio-group v-model="mode" size="large" class="mode-group">
         <el-radio-button value="once">放行一次</el-radio-button>
         <el-radio-button value="visitor">登記為訪客並放行</el-radio-button>
         <el-radio-button value="deny">拒絕進入</el-radio-button>
@@ -96,16 +95,18 @@
           <el-input v-model="note" :placeholder="mode === 'deny' ? '例如：未事先聯繫住戶' : '例如：快遞臨停 / 住戶電話確認'" />
         </el-form-item>
       </el-form>
-    </template>
+        </section>
+      </div>
+    </transition>
 
     <template #footer>
-      <div style="display: flex; justify-content: space-between; align-items: center; width: 100%">
-        <span style="color: #64748b; font-size: 13px">
-          待處理佇列：{{ appState.pendingEvents.length }} 筆
-        </span>
-        <div>
-          <el-button @click="dismiss">稍後處理</el-button>
+      <div class="dlg-footer">
+        <span class="queue text-muted">待處理佇列 <strong class="mono">{{ appState.pendingEvents.length }}</strong> 筆</span>
+        <div class="footer-actions">
+          <el-button size="large" @click="dismiss">稍後處理</el-button>
           <el-button
+            size="large"
+            class="confirm-btn"
             :type="mode === 'deny' ? 'danger' : 'primary'"
             :loading="submitting"
             @click="submit"
@@ -121,6 +122,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import { WarningFilled } from '@element-plus/icons-vue'
 import {
   api,
   DIRECTION_LABEL,
@@ -218,36 +220,138 @@ async function submit() {
 </script>
 
 <style scoped>
-.pending-head {
+.dlg-head {
   display: flex;
-  gap: 16px;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
+  gap: var(--cg-space-3);
 }
-.plate-info {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.dlg-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border-radius: var(--cg-radius-pill);
+  font-size: var(--cg-text-xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--cg-warning-text);
+  background: color-mix(in srgb, var(--cg-warning) 12%, transparent);
 }
-.meta {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 13px;
-  color: #475569;
+.dlg-title {
+  font-family: var(--cg-font-serif);
+  font-size: var(--cg-text-xl);
+  font-weight: 600;
+  letter-spacing: 0.06em;
 }
-.crop-img {
-  max-width: 180px;
-  max-height: 70px;
-  border-radius: 4px;
-  border: 1px solid #e2e8f0;
-  object-fit: contain;
+
+.evidence {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: var(--cg-space-5);
+  padding-bottom: var(--cg-space-5);
+  border-bottom: 1px solid var(--cg-border);
+}
+.media {
+  position: relative;
 }
 .snap-img {
-  width: 260px;
-  height: 160px;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
   object-fit: cover;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
+  border-radius: var(--cg-radius-md);
+  background: var(--cg-media-bg);
+}
+.snap-empty {
+  display: grid;
+  place-items: center;
+  color: var(--cg-side-text-dim);
+  font-size: var(--cg-text-sm);
+}
+.media-tag {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  padding: 3px 10px;
+  border-radius: var(--cg-radius-pill);
+  font-size: var(--cg-text-xs);
+  letter-spacing: 0.08em;
+  color: var(--cg-overlay-text);
+  background: var(--cg-overlay);
+  backdrop-filter: blur(6px);
+}
+.facts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--cg-space-3);
+}
+.crop-img {
+  max-width: 100%;
+  max-height: 64px;
+  border-radius: var(--cg-radius-sm);
+  border: 1px solid var(--cg-border);
+  object-fit: contain;
+  background: var(--cg-media-bg);
+}
+.fact-list {
+  margin: 0;
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
+.fact-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--cg-space-3);
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--cg-border);
+}
+.fact-list dt {
+  font-size: var(--cg-text-sm);
+  color: var(--cg-text-3);
+  letter-spacing: 0.06em;
+}
+.fact-list dd {
+  margin: 0;
+  font-weight: 500;
+  color: var(--cg-text);
+}
+
+.decision {
+  padding-top: var(--cg-space-5);
+}
+.mode-group {
+  display: flex;
+  width: 100%;
+  margin-bottom: var(--cg-space-4);
+}
+.mode-group :deep(.el-radio-button) {
+  flex: 1;
+}
+.mode-group :deep(.el-radio-button__inner) {
+  width: 100%;
+}
+
+.dlg-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--cg-space-3);
+  width: 100%;
+}
+.footer-actions {
+  display: flex;
+  gap: var(--cg-space-3);
+}
+/* 主要按鈕：寬度固定，不因文案長短位移，降低誤觸 */
+.confirm-btn {
+  min-width: 200px;
+}
+
+@media (max-width: 820px) {
+  .evidence {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>
