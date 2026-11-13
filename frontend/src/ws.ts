@@ -60,11 +60,24 @@ class WsHub {
 
 export const wsHub = new WsHub()
 
+// 瀏覽器限制同時存在的 AudioContext 數量，每次響鈴都 new 一個且不關閉，響幾次後就再也沒有聲音；
+// 因此整個頁面共用同一個。
+let sharedAudioCtx: AudioContext | null = null
+
+function getAudioContext(): AudioContext | null {
+  if (sharedAudioCtx && sharedAudioCtx.state !== 'closed') return sharedAudioCtx
+  const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  if (!AudioCtx) return null
+  sharedAudioCtx = new AudioCtx()
+  return sharedAudioCtx
+}
+
 export function playAlertBeep(urgent = false) {
   try {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-    if (!AudioCtx) return
-    const ctx = new AudioCtx()
+    const ctx = getAudioContext()
+    if (!ctx) return
+    // 尚未有使用者互動或分頁進入背景時會被瀏覽器暫停
+    if (ctx.state === 'suspended') void ctx.resume()
     const freqs = urgent ? [880, 660, 880] : [740, 880]
     freqs.forEach((f, idx) => {
       const osc = ctx.createOscillator()
