@@ -5,6 +5,7 @@ import asyncio
 import ipaddress
 import logging
 import socket
+import time
 
 import cv2
 import numpy as np
@@ -214,16 +215,31 @@ async def lane_stream(lane_id: int, request: Request, _: User = Depends(current_
     boundary = "frame"
     placeholder = _placeholder_jpeg()
 
+    interval = 1 / 15  # 串流上限 15fps
+
     async def gen():
+        last_seq = -1
+        last_sent = 0.0
         while not await request.is_disconnected():
             mgr = _manager()
             w = mgr.get(lane_id) if mgr else None
+            online = bool(w and w.online)
+            now = time.monotonic()
+            # 沒有新影格就不重送（最多每秒補一張保活），有新影格才編碼送出
+            if online and w.frame_seq == last_seq and now - last_sent < 1.0:
+                await asyncio.sleep(0.01)
+                continue
+            t0 = now
+            if w:
+                last_seq = w.frame_seq
             jpg = await run_in_threadpool(w.annotated_jpeg) if w else None
             jpg = jpg or placeholder
             yield (
                 f"--{boundary}\r\nContent-Type: image/jpeg\r\nContent-Length: {len(jpg)}\r\n\r\n".encode() + jpg + b"\r\n"
             )
-            await asyncio.sleep(0.1 if w and w.online else 1.0)
+            last_sent = time.monotonic()
+            # 扣掉編碼與送出花的時間，避免「編碼時間 + 固定 sleep」把實際 fps 拉低
+            await asyncio.sleep(max(0.0, interval - (last_sent - t0)) if online else 1.0)
 
     return StreamingResponse(gen(), media_type=f"multipart/x-mixed-replace; boundary={boundary}", headers={"Cache-Control": "no-store"})
 

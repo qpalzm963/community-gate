@@ -7,7 +7,7 @@ export interface RecognitionInfo {
 }
 
 export interface LanePushOptions {
-  /** 擷取間隔（毫秒），預設 100ms ≈ 10fps */
+  /** 擷取間隔（毫秒），預設 66ms ≈ 15fps */
   intervalMs?: number
   /** 送出影格的最大寬度，超過會等比縮小 */
   maxWidth?: number
@@ -27,7 +27,7 @@ export function useLanePush(
   token: Ref<string>,
   options: LanePushOptions = {},
 ) {
-  const { intervalMs = 100, maxWidth = 960, jpegQuality = 0.72, recognitionTtlMs = 5000 } = options
+  const { intervalMs = 66, maxWidth = 960, jpegQuality = 0.72, recognitionTtlMs = 5000 } = options
 
   const isConnected = ref(false)
   const fps = ref(0)
@@ -40,6 +40,10 @@ export function useLanePush(
   let fpsTimer: ReturnType<typeof setInterval> | null = null
   let recClearTimer: ReturnType<typeof setTimeout> | null = null
   let frameCount = 0
+  /** 上一張還在編碼中 */
+  let encoding = false
+  /** 送出緩衝超過約兩張影格就跳過，避免網路慢時延遲越積越長 */
+  const MAX_BUFFERED_BYTES = 200 * 1024
 
   function handleMessage(e: MessageEvent) {
     let msg: { type?: string } & Partial<RecognitionInfo>
@@ -92,6 +96,7 @@ export function useLanePush(
   function captureFrame() {
     const sock = ws
     if (!isConnected.value || !sock || sock.readyState !== WebSocket.OPEN) return
+    if (encoding || sock.bufferedAmount > MAX_BUFFERED_BYTES) return
     const v = videoEl.value
     const c = canvasEl.value
     if (!v || !c || v.videoWidth === 0) return
@@ -105,8 +110,10 @@ export function useLanePush(
     const ctx = c.getContext('2d')
     if (!ctx) return
     ctx.drawImage(v, 0, 0, w, h)
+    encoding = true
     c.toBlob(
       (blob) => {
+        encoding = false
         if (blob && ws && ws.readyState === WebSocket.OPEN) {
           ws.send(blob)
           frameCount++
