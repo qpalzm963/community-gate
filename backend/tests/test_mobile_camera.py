@@ -3,19 +3,65 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
+from app.api import system
 from app.api.system import get_lan_ip
 from app.auth import create_camera_token, verify_camera_token
 from app.ssl_cert import ensure_self_signed_cert
 from app.vision.camera import LaneWorker
 
 
-def test_get_lan_ip():
-    # 傳入合法的外部 IP 應優先採用
+class _FakeUdpSocket:
+    """假的 UDP socket：route_ip 為 None 代表沒有對外路由（connect 失敗）。"""
+
+    route_ip: str | None = None
+
+    def __init__(self, *args):
+        pass
+
+    def connect(self, addr):
+        if self.route_ip is None:
+            raise OSError("network unreachable")
+
+    def getsockname(self):
+        return (self.route_ip, 0)
+
+    def close(self):
+        pass
+
+
+def _fake_network(monkeypatch, route_ip: str | None, host_ips: list[str]) -> None:
+    """固定本機網路狀態，結果不受跑測試那台電腦的網卡影響。"""
+    sock = type("Sock", (_FakeUdpSocket,), {"route_ip": route_ip})
+    monkeypatch.setattr(system.socket, "socket", sock)
+    monkeypatch.setattr(system.socket, "gethostbyname_ex", lambda _h: ("host", [], host_ips))
+
+
+def test_get_lan_ip_uses_reachable_request_host(monkeypatch):
+    """管理者用區網 IP 或公網網域開頁面時，手機用同一個位址就連得到，不必再猜網卡。"""
+    _fake_network(monkeypatch, route_ip=None, host_ips=[])
     assert get_lan_ip("192.168.1.100") == "192.168.1.100"
-    # 傳入 169.254.x.x 應自動過濾並重選有效 IP
-    assert not get_lan_ip("169.254.8.1").startswith("169.254.")
-    # 傳入 localhost/127.0.0.1 應重選有效 IP
-    assert get_lan_ip("localhost") != "localhost"
+    assert get_lan_ip("gate.example.com") == "gate.example.com"
+
+
+def test_get_lan_ip_rejects_unreachable_request_host(monkeypatch):
+    """用 localhost / 169.254.x.x 開頁面時，這些位址手機連不到，要改用偵測到的區網 IP。"""
+    _fake_network(monkeypatch, route_ip="192.168.1.20", host_ips=[])
+    for host in ("localhost", "127.0.0.1", "0.0.0.0", "169.254.8.1"):
+        assert get_lan_ip(host) == "192.168.1.20"
+
+
+def test_get_lan_ip_skips_link_local_route(monkeypatch):
+    """對外路由剛好走 169.254 網卡（USB 網路、虛擬網卡）時要略過，改從其他網卡挑。"""
+    _fake_network(monkeypatch, route_ip="169.254.3.4", host_ips=["169.254.3.4", "192.168.1.20"])
+    assert get_lan_ip() == "192.168.1.20"
+
+
+def test_get_lan_ip_prefers_private_over_public(monkeypatch):
+    """172.5.x.x 是公網位址，不屬於 172.16/12 私有網段；社區內網的手機要連的是私有 IP。"""
+    _fake_network(monkeypatch, route_ip=None, host_ips=["172.5.0.9", "192.168.1.20"])
+    assert get_lan_ip() == "192.168.1.20"
+    _fake_network(monkeypatch, route_ip=None, host_ips=["172.5.0.9", "172.20.0.5"])
+    assert get_lan_ip() == "172.20.0.5"
 
 
 def test_camera_token_roundtrip():
