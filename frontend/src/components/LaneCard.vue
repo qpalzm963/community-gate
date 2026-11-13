@@ -1,37 +1,42 @@
 <template>
-  <el-card shadow="never">
-    <template #header>
-      <div class="lane-head">
-        <div>
-          <strong>{{ lane.name }}</strong>
-          <el-tag size="small" style="margin-left: 8px">{{ DIRECTION_LABEL[lane.direction] }}</el-tag>
-          <el-tag size="small" type="info" style="margin-left: 4px">
-            {{ VEHICLE_TYPE_LABEL[lane.vehicle_types] }}
-          </el-tag>
-        </div>
-        <div style="display: flex; align-items: center; gap: 8px">
-          <el-tag :type="lane.status?.online ? 'success' : 'info'" size="small">
-            {{ lane.status?.online ? `連線中 ${lane.status.capture_fps ?? ''}fps` : '離線 / 未接攝影機' }}
-          </el-tag>
-          <el-button size="small" @click="emit('show-qr', lane)">📱 手機鏡頭</el-button>
-          <el-button type="primary" size="small" @click="manualOpenGate">手動開閘</el-button>
-        </div>
+  <article class="lane-card" :class="{ online: lane.status?.online }">
+    <header class="lane-head">
+      <div class="lane-title">
+        <h3>{{ lane.name }}</h3>
+        <span class="lane-meta">{{ DIRECTION_LABEL[lane.direction] }} · {{ VEHICLE_TYPE_LABEL[lane.vehicle_types] }}</span>
       </div>
-    </template>
+      <div class="lane-actions">
+        <el-button size="small" :icon="Iphone" @click="emit('show-qr', lane)">手機鏡頭</el-button>
+        <el-button type="primary" size="small" :icon="Unlock" @click="manualOpenGate">手動開閘</el-button>
+      </div>
+    </header>
 
     <div class="stream-wrap">
-      <img :src="`/api/lanes/${lane.id}/stream`" class="stream-img" :alt="lane.name" />
-      <div v-if="banner" class="gate-banner" :class="banner.ok ? 'ok' : 'err'">
-        {{ banner.text }}
+      <img :src="`/api/lanes/${lane.id}/stream`" class="stream-img" :alt="`${lane.name} 即時畫面`" />
+      <div class="stream-vignette" aria-hidden="true" />
+      <div class="stream-info top">
+        <span class="live-chip" :class="lane.status?.online ? 'on' : 'off'">
+          <span class="live-dot" />
+          {{ lane.status?.online ? `LIVE · ${lane.status.capture_fps ?? '—'} fps` : '離線 / 未接攝影機' }}
+        </span>
       </div>
+      <div class="stream-info bottom">
+        <span class="stream-lane">{{ lane.name }}</span>
+      </div>
+      <transition name="fade-rise">
+        <div v-if="banner" class="gate-banner" :class="banner.ok ? 'ok' : 'err'" role="status">
+          <el-icon><component :is="banner.ok ? CircleCheck : CircleClose" /></el-icon>
+          {{ banner.text }}
+        </div>
+      </transition>
     </div>
 
     <div class="lane-tools">
       <el-input
         v-model="simPlate"
         size="small"
-        placeholder="輸入車牌模擬辨識 (例 ABC-1234)"
-        style="width: 210px"
+        placeholder="輸入車牌模擬辨識（例 ABC-1234）"
+        class="sim-input"
         @keyup.enter="simulatePlate"
       />
       <el-button size="small" @click="simulatePlate">模擬辨識</el-button>
@@ -40,15 +45,16 @@
         accept="image/*"
         :http-request="(opt: UploadRequestOptions) => uploadRecognize(opt.file)"
       >
-        <el-button size="small" plain>上傳圖片辨識</el-button>
+        <el-button size="small" text :icon="Picture">上傳圖片辨識</el-button>
       </el-upload>
     </div>
-  </el-card>
+  </article>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { ElMessage, type UploadRequestOptions } from 'element-plus'
+import { CircleCheck, CircleClose, Iphone, Picture, Unlock } from '@element-plus/icons-vue'
 import { api, DECISION_LABEL, DIRECTION_LABEL, VEHICLE_TYPE_LABEL, type AccessEvent, type Lane } from '../api'
 import { appState } from '../store'
 
@@ -114,17 +120,58 @@ async function uploadRecognize(file: File) {
 </script>
 
 <style scoped>
+.lane-card {
+  position: relative;
+  padding: 18px;
+  border-radius: var(--cg-radius-lg);
+  border: 1px solid var(--cg-border);
+  background: var(--cg-surface);
+  box-shadow: var(--cg-shadow-sm);
+  overflow: hidden;
+}
+/* 左側細色條：車道連線狀態 */
+.lane-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18px;
+  bottom: 18px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--cg-border-strong);
+}
+.lane-card.online::before {
+  background: var(--cg-success);
+}
 .lane-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--cg-space-2);
+  margin-bottom: 14px;
 }
+.lane-title h3 {
+  margin: 0;
+  font-family: var(--cg-font-serif);
+  font-size: var(--cg-text-lg);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.lane-meta {
+  font-size: var(--cg-text-xs);
+  letter-spacing: 0.1em;
+  color: var(--cg-text-3);
+}
+.lane-actions {
+  display: flex;
+  gap: var(--cg-space-2);
+}
+
 .stream-wrap {
   position: relative;
-  background: #111827;
-  border-radius: 6px;
+  background: var(--cg-media-bg);
+  border-radius: var(--cg-radius-md);
   overflow: hidden;
   aspect-ratio: 16 / 9;
 }
@@ -134,25 +181,99 @@ async function uploadRecognize(file: File) {
   object-fit: contain;
   display: block;
 }
+.stream-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 45%, transparent 55%, var(--cg-overlay) 100%),
+    linear-gradient(180deg, var(--cg-overlay) 0%, transparent 22%, transparent 70%, var(--cg-overlay) 100%);
+}
+.stream-info {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.stream-info.top {
+  top: 10px;
+  justify-content: flex-end;
+}
+.stream-info.bottom {
+  bottom: 10px;
+}
+.stream-lane {
+  font-size: var(--cg-text-sm);
+  letter-spacing: 0.1em;
+  color: var(--cg-overlay-text);
+}
+.live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--cg-radius-pill);
+  font-family: var(--cg-font-mono);
+  font-size: var(--cg-text-xs);
+  letter-spacing: 0.06em;
+  color: var(--cg-overlay-text);
+  background: var(--cg-overlay);
+  backdrop-filter: blur(6px);
+}
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cg-side-text-dim);
+}
+.live-chip.on .live-dot {
+  background: var(--cg-success-text);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
 .gate-banner {
   position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 6px 16px;
-  border-radius: 999px;
-  font-weight: 600;
-  color: #fff;
-  font-size: 14px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  bottom: 40px;
+  left: 0;
+  right: 0;
+  width: fit-content;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: var(--cg-radius-pill);
+  font-weight: 500;
+  font-size: var(--cg-text-md);
+  color: var(--cg-text-inverse);
+  background: var(--cg-overlay);
+  border: 1px solid currentColor;
+  backdrop-filter: blur(8px);
+  box-shadow: var(--cg-shadow-md);
+  white-space: nowrap;
 }
-.gate-banner.ok { background: #16a34a; }
-.gate-banner.err { background: #dc2626; }
+.gate-banner.ok {
+  border-color: var(--cg-success);
+  background: color-mix(in srgb, var(--cg-success) 82%, var(--cg-media-bg));
+}
+.gate-banner.err {
+  border-color: var(--cg-danger);
+  background: color-mix(in srgb, var(--cg-danger) 82%, var(--cg-media-bg));
+}
+
 .lane-tools {
   display: flex;
-  gap: 8px;
+  gap: var(--cg-space-2);
   align-items: center;
-  margin-top: 10px;
+  margin-top: 14px;
   flex-wrap: wrap;
+}
+.sim-input {
+  width: 230px;
 }
 </style>
