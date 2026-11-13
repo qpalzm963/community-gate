@@ -53,55 +53,7 @@
     <!-- 車道即時畫面 -->
     <el-row :gutter="16" style="margin-bottom: 16px">
       <el-col v-for="lane in enabledLanes" :key="lane.id" :xs="24" :md="12" style="margin-bottom: 12px">
-        <el-card shadow="never">
-          <template #header>
-            <div class="lane-head">
-              <div>
-                <strong>{{ lane.name }}</strong>
-                <el-tag size="small" style="margin-left: 8px">{{ DIRECTION_LABEL[lane.direction] }}</el-tag>
-                <el-tag size="small" type="info" style="margin-left: 4px">
-                  {{ VEHICLE_TYPE_LABEL[lane.vehicle_types] }}
-                </el-tag>
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px">
-                <el-tag :type="lane.status?.online ? 'success' : 'info'" size="small">
-                  {{ lane.status?.online ? `連線中 ${lane.status.capture_fps ?? ''}fps` : '離線 / 未接攝影機' }}
-                </el-tag>
-                <el-button size="small" @click="showQr(lane)">📱 手機鏡頭</el-button>
-                <el-button type="primary" size="small" @click="manualOpenGate(lane)">手動開閘</el-button>
-              </div>
-            </div>
-          </template>
-
-          <div class="stream-wrap">
-            <img :src="`/api/lanes/${lane.id}/stream`" class="stream-img" :alt="lane.name" />
-            <div
-              v-if="gateBanner(lane.id)"
-              class="gate-banner"
-              :class="gateBanner(lane.id)?.ok ? 'ok' : 'err'"
-            >
-              {{ gateBanner(lane.id)?.text }}
-            </div>
-          </div>
-
-          <div class="lane-tools">
-            <el-input
-              v-model="simPlate[lane.id]"
-              size="small"
-              placeholder="輸入車牌模擬辨識 (例 ABC-1234)"
-              style="width: 210px"
-              @keyup.enter="simulatePlate(lane.id)"
-            />
-            <el-button size="small" @click="simulatePlate(lane.id)">模擬辨識</el-button>
-            <el-upload
-              :show-file-list="false"
-              accept="image/*"
-              :http-request="(opt: UploadRequestOptions) => uploadRecognize(lane.id, opt.file)"
-            >
-              <el-button size="small" plain>上傳圖片辨識</el-button>
-            </el-upload>
-          </div>
-        </el-card>
+        <LaneCard :lane="lane" :now-tick="nowTick" @show-qr="showQr" @changed="loadAll" />
       </el-col>
     </el-row>
 
@@ -191,10 +143,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type UploadRequestOptions } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
+import LaneCard from '../components/LaneCard.vue'
 import MobileCameraQrDialog from '../components/MobileCameraQrDialog.vue'
 import {
   api,
@@ -204,20 +157,15 @@ import {
   fmtDateTime,
   VEHICLE_TYPE_LABEL,
   type AccessEvent,
-  type DashboardStats,
   type Lane,
-  type PresenceItem,
 } from '../api'
-import { appState } from '../store'
-import { wsHub } from '../ws'
+import { useMonitorData } from '../composables/useMonitorData'
 
 const router = useRouter()
-const lanes = ref<Lane[]>([])
-const recentEvents = ref<AccessEvent[]>([])
-const presence = ref<PresenceItem[]>([])
+const { enabledLanes, recentEvents, presence, stats, loadAll } = useMonitorData()
 const activeTab = ref('events')
-const simPlate = reactive<Record<number, string>>({})
 const previewEvent = ref<AccessEvent | null>(null)
+// 開閘提示橫幅依此判斷是否已過期
 const nowTick = ref(Date.now())
 let timer: number | null = null
 
@@ -236,25 +184,6 @@ const previewVisible = computed({
   },
 })
 
-const stats = reactive<DashboardStats>({
-  today_in: 0,
-  today_out: 0,
-  today_denied: 0,
-  pending: 0,
-  onsite_vehicles: 0,
-  onsite_visitors: 0,
-  overstay_visitors: 0,
-  unack_alerts: 0,
-})
-
-const enabledLanes = computed(() => lanes.value.filter((l) => l.enabled))
-
-function gateBanner(laneId: number) {
-  const g = appState.gateAnim[laneId]
-  if (!g || g.until < nowTick.value) return null
-  return g
-}
-
 function categoryTag(c: string) {
   if (c === 'RESIDENT') return 'success'
   if (c === 'VISITOR') return 'primary'
@@ -269,90 +198,20 @@ function decisionTag(d: string) {
   return 'warning'
 }
 
-async function loadAll() {
-  const [l, d, ev, p] = await Promise.all([
-    api.get<Lane[]>('/api/lanes'),
-    api.get<DashboardStats>('/api/dashboard'),
-    api.get<{ items: AccessEvent[] }>('/api/events?page=1&page_size=20'),
-    api.get<PresenceItem[]>('/api/presence'),
-  ])
-  lanes.value = l
-  Object.assign(stats, d)
-  recentEvents.value = ev.items
-  presence.value = p
-}
-
-async function manualOpenGate(lane: Lane) {
-  try {
-    await api.post(`/api/lanes/${lane.id}/open`, { note: '即時監控手動開閘' })
-    ElMessage.success(`${lane.name} 已開閘`)
-    void loadAll()
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  }
-}
-
-async function simulatePlate(laneId: number) {
-  const plate = (simPlate[laneId] || '').trim()
-  if (!plate) return
-  try {
-    await api.post(`/api/lanes/${laneId}/simulate`, { plate })
-    simPlate[laneId] = ''
-    void loadAll()
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  }
-}
-
-async function uploadRecognize(laneId: number, file: File) {
-  const form = new FormData()
-  form.append('file', file)
-  try {
-    const res = await api.upload<{ detections: Array<{ plate_display: string | null; raw_text: string; confidence: number }>; event: AccessEvent | null }>(
-      `/api/lanes/${laneId}/recognize?apply=true`,
-      form,
-    )
-    if (res.event) {
-      ElMessage.success(`辨識結果：${res.event.plate_display}（${DECISION_LABEL[res.event.decision]}）`)
-    } else if (res.detections.length > 0) {
-      ElMessage.warning(`僅偵測到：${res.detections.map((d) => d.raw_text).join(', ')}（未符合車牌格式）`)
-    } else {
-      ElMessage.info('圖片中未偵測到車牌')
-    }
-    void loadAll()
-  } catch (err) {
-    ElMessage.error((err as Error).message)
-  }
-}
-
 async function closePresence(id: number) {
   await api.post(`/api/presence/${id}/close`)
   ElMessage.success('已結清離場')
   void loadAll()
 }
 
-const unsubs: Array<() => void> = []
-
 onMounted(() => {
-  void loadAll()
   timer = window.setInterval(() => {
     nowTick.value = Date.now()
   }, 500)
-  unsubs.push(
-    wsHub.on('access_event', () => void loadAll()),
-    wsHub.on('access_event_updated', () => void loadAll()),
-    wsHub.on('lane_status', (st) => {
-      const target = lanes.value.find((l) => l.id === Number(st.lane_id))
-      if (target) {
-        target.status = st as unknown as Lane['status']
-      }
-    }),
-  )
 })
 
 onUnmounted(() => {
   if (timer !== null) clearInterval(timer)
-  unsubs.forEach((u) => u())
 })
 </script>
 
@@ -372,45 +231,4 @@ onUnmounted(() => {
 .text-primary { color: #2563eb; }
 .text-success { color: #16a34a; }
 .text-danger { color: #dc2626; }
-.lane-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.stream-wrap {
-  position: relative;
-  background: #111827;
-  border-radius: 6px;
-  overflow: hidden;
-  aspect-ratio: 16 / 9;
-}
-.stream-img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-}
-.gate-banner {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 6px 16px;
-  border-radius: 999px;
-  font-weight: 600;
-  color: #fff;
-  font-size: 14px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-}
-.gate-banner.ok { background: #16a34a; }
-.gate-banner.err { background: #dc2626; }
-.lane-tools {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin-top: 10px;
-  flex-wrap: wrap;
-}
 </style>
