@@ -177,6 +177,7 @@ def handle_detection(
     at = at or now()
     db = SessionLocal()
     saved: tuple[str, ...] = ()
+    committed = False
     try:
         lane = db.get(Lane, lane_id)
         if lane is None:
@@ -217,13 +218,16 @@ def handle_detection(
         if d.allowed:
             _apply_allow_effects(db, ev, d.visitor)
         db.commit()
+        committed = True
         db.refresh(ev)
         data = event_dict(ev)
         alert_data = [alert_dict(a) for a in alerts]
     except Exception:
-        # 事件沒寫進資料庫就不該留下截圖，否則會變成找不到對應紀錄的孤兒檔
-        db.rollback()
-        snapshots.remove(*saved)
+        # 事件沒寫進資料庫就不該留下截圖，否則會變成找不到對應紀錄的孤兒檔；
+        # 已 commit 的事件則仍指向這些截圖，不能刪
+        if not committed:
+            db.rollback()
+            snapshots.remove(*saved)
         raise
     finally:
         db.close()

@@ -108,6 +108,12 @@ def test_stale_pending_closed_by_timeout(auth_client, gate_calls):
 
     now = datetime(2026, 11, 13, 18, 0, 0)
     stale = _pending_event(client, "OLD-0001")
+    db = SessionLocal()
+    try:
+        original_note = db.get(AccessEvent, stale).note
+    finally:
+        db.close()
+    assert original_note
     fresh = _pending_event(client, "NEW-0002")
     _set_occurred_at(stale, now - timedelta(minutes=11))
     _set_occurred_at(fresh, now - timedelta(minutes=9))
@@ -120,6 +126,8 @@ def test_stale_pending_closed_by_timeout(auth_client, gate_calls):
         assert ev.decision == EventDecision.DENY.value
         assert ev.decided_at == now
         assert "逾時" in ev.note
+        # 原本的判斷原因要保留，事後查紀錄才知道這台車當初為何待處理
+        assert ev.note.startswith(original_note)
         # 對應的未登記車輛警示一併結案，不再算未讀
         assert all(a.acknowledged for a in db.query(Alert).filter(Alert.event_id == stale))
         assert db.get(AccessEvent, fresh).decision == EventDecision.PENDING.value
@@ -168,3 +176,36 @@ def test_failed_commit_removes_snapshots(auth_client, monkeypatch):
     monkeypatch.undo()
     assert len(saved) == 2 and all(saved)
     assert all(resolve(rel) is None for rel in saved)
+
+
+def test_error_after_commit_keeps_snapshots(auth_client, monkeypatch):
+    """事件已寫進資料庫後才出錯（例如讀回事件失敗），紀錄仍指向這些截圖，不能被當成孤兒檔刪掉。"""
+    client, _ = auth_client
+    lane_id = _in_lane_id(client)
+    saved: list[str] = []
+    real_save = service.save_jpeg
+
+    def spy_save(*args, **kwargs):
+        rel = real_save(*args, **kwargs)
+        saved.append(rel)
+        return rel
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("serialize failed")
+
+    monkeypatch.setattr(service, "save_jpeg", spy_save)
+    monkeypatch.setattr(service, "event_dict", boom)
+
+    img = np.zeros((40, 60, 3), dtype=np.uint8)
+    with pytest.raises(RuntimeError):
+        service.handle_detection("KEP1234", 0.9, lane_id, frame=img, crop=img)
+
+    monkeypatch.undo()
+    assert len(saved) == 2 and all(saved)
+    assert all(resolve(rel) is not None for rel in saved)
+    db = SessionLocal()
+    try:
+        ev = db.query(AccessEvent).filter(AccessEvent.plate == "KEP1234").one()
+        assert ev.snapshot_path == saved[0]
+    finally:
+        db.close()

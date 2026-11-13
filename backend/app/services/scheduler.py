@@ -70,7 +70,8 @@ def close_stale_pending(at: datetime | None = None) -> list[int]:
             res = db.execute(
                 update(AccessEvent)
                 .where(AccessEvent.id == eid, AccessEvent.decision == EventDecision.PENDING.value)
-                .values(decision=EventDecision.DENY.value, decided_at=at, note=note)
+                # 保留原本的判斷原因（例如「未登記車輛」），事後查紀錄才知道當初為何待處理
+                .values(decision=EventDecision.DENY.value, decided_at=at, note=AccessEvent.note + f"；{note}")
             )
             if res.rowcount == 1:
                 closed.append(eid)
