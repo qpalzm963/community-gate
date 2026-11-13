@@ -1,5 +1,5 @@
 <template>
-  <div class="mobile-cam-container">
+  <div class="mobile-cam-container theme-dark">
     <!-- 頂部資訊列 -->
     <header class="cam-header">
       <div class="lane-title">
@@ -122,23 +122,23 @@ onMounted(() => {
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background-color: #000;
-  color: #fff;
+  background-color: var(--cg-media-bg);
+  color: var(--cg-text);
   overflow: hidden;
   position: relative;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--cg-font-sans);
 }
 
 .cam-header {
   height: 52px;
-  background: rgba(15, 23, 42, 0.85);
+  background: color-mix(in srgb, var(--cg-surface) 85%, transparent);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
   z-index: 10;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--cg-shadow-lg);
 }
 
 .lane-title {
@@ -151,18 +151,18 @@ onMounted(() => {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background-color: #ef4444;
+  background-color: var(--cg-danger);
 }
 
 .pulse-dot.active {
-  background-color: #10b981;
-  box-shadow: 0 0 8px #10b981;
+  background-color: var(--cg-success);
+  box-shadow: 0 0 8px var(--cg-success);
 }
 
 .title-text {
   font-weight: 600;
   font-size: 16px;
-  color: #f8fafc;
+  color: var(--cg-text);
 }
 
 .badge {
@@ -173,15 +173,15 @@ onMounted(() => {
 }
 
 .badge-success {
-  background-color: rgba(16, 185, 129, 0.2);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.4);
+  background-color: color-mix(in srgb, var(--cg-success) 20%, transparent);
+  color: var(--cg-success-text);
+  border: 1px solid color-mix(in srgb, var(--cg-success) 40%, transparent);
 }
 
 .badge-danger {
-  background-color: rgba(239, 68, 68, 0.2);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.4);
+  background-color: color-mix(in srgb, var(--cg-danger) 20%, transparent);
+  color: var(--cg-danger-text);
+  border: 1px solid color-mix(in srgb, var(--cg-danger) 40%, transparent);
 }
 
 .video-wrapper {
@@ -190,7 +190,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #000;
+  background-color: var(--cg-media-bg);
   overflow: hidden;
 }
 
@@ -203,7 +203,7 @@ onMounted(() => {
 .error-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.92);
+  background: color-mix(in srgb, var(--cg-surface) 92%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,12 +212,12 @@ onMounted(() => {
 }
 
 .error-card {
-  background: #1e293b;
+  background: var(--cg-surface-2);
   border-radius: 16px;
   padding: 24px;
   text-align: center;
   max-width: 340px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--cg-shadow-lg);
 }
 
 .error-icon {
@@ -228,14 +228,14 @@ onMounted(() => {
 .error-title {
   font-size: 18px;
   font-weight: bold;
-  color: #f8fafc;
+  color: var(--cg-text);
   margin-bottom: 8px;
 }
 
 .error-desc {
   font-size: 13px;
   line-height: 1.5;
-  color: #94a3b8;
+  color: var(--cg-text-3);
   margin-bottom: 20px;
 }
 
@@ -249,8 +249,8 @@ onMounted(() => {
 }
 
 .btn-primary {
-  background-color: #3b82f6;
-  color: #fff;
+  background-color: var(--cg-navy);
+  color: var(--cg-text-inverse);
 }
 
 .recognition-card {
@@ -258,7 +258,7 @@ onMounted(() => {
   bottom: 20px;
   left: 16px;
   right: 16px;
-  background: rgba(15, 23, 42, 0.95);
+  background: color-mix(in srgb, var(--cg-surface) 95%, transparent);
   border-radius: 12px;
   padding: 14px 18px;
   display: flex;
@@ -266,12 +266,12 @@ onMounted(() => {
   gap: 14px;
   backdrop-filter: blur(10px);
   z-index: 15;
-  border-left: 6px solid #10b981;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  border-left: 6px solid var(--cg-success);
+  box-shadow: var(--cg-shadow-lg);
 }
 
 .recognition-card.warn {
-  border-left-color: #f59e0b;
+  border-left-color: var(--cg-warning-text);
 }
 
 .rec-icon {
@@ -286,18 +286,18 @@ onMounted(() => {
   font-size: 22px;
   font-weight: 800;
   letter-spacing: 1px;
-  color: #ffffff;
+  color: var(--cg-text);
 }
 
 .rec-status {
   font-size: 13px;
-  color: #94a3b8;
+  color: var(--cg-text-3);
   margin-top: 2px;
 }
 
 .cam-footer {
   height: 68px;
-  background: rgba(15, 23, 42, 0.85);
+  background: color-mix(in srgb, var(--cg-surface) 85%, transparent);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -309,7 +309,7 @@ onMounted(() => {
 .tool-btn {
   background: transparent;
   border: none;
-  color: #cbd5e1;
+  color: var(--cg-text-2);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -325,7 +325,7 @@ onMounted(() => {
 }
 
 .tool-btn.btn-active {
-  color: #fbbf24;
+  color: var(--cg-gold);
 }
 
 .slide-up-enter-active,
