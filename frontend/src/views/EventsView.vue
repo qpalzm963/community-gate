@@ -2,13 +2,13 @@
   <div>
     <div class="page-header">
       <h2 class="page-title">進出紀錄查詢</h2>
-      <div style="display: flex; gap: 8px">
+      <div class="page-actions">
         <el-button @click="doExport('csv')">匯出 CSV</el-button>
         <el-button type="primary" @click="doExport('xlsx')">匯出 Excel (.xlsx)</el-button>
       </div>
     </div>
 
-    <el-card shadow="never" style="margin-bottom: 14px">
+    <el-card shadow="never" class="filter-bar">
       <el-form inline>
         <el-form-item label="日期">
           <el-date-picker
@@ -54,7 +54,9 @@
     </el-card>
 
     <el-card shadow="never">
-      <el-table :data="items" stripe>
+      <el-skeleton v-if="!loaded" animated :rows="6" />
+      <el-table v-else :data="items" stripe>
+        <template #empty><EmptyState title="查無符合條件的紀錄" description="試著調整日期或篩選條件" /></template>
         <el-table-column label="時間" width="165">
           <template #default="{ row }">{{ fmtDateTime(row.occurred_at) }}</template>
         </el-table-column>
@@ -65,7 +67,7 @@
         <el-table-column label="車牌" width="130">
           <template #default="{ row }">
             <span v-if="row.plate_display" class="plate-badge">{{ row.plate_display }}</span>
-            <span v-else style="color: #94a3b8">—</span>
+            <span v-else class="text-muted">—</span>
           </template>
         </el-table-column>
         <el-table-column label="車種" width="75">
@@ -74,8 +76,8 @@
         <el-table-column label="類別" width="90">
           <template #default="{ row }">{{ CATEGORY_LABEL[row.category] }}</template>
         </el-table-column>
-        <el-table-column label="處理結果" width="95">
-          <template #default="{ row }">{{ DECISION_LABEL[row.decision] }}</template>
+        <el-table-column label="處理結果" width="120">
+          <template #default="{ row }"><DecisionMark :decision="row.decision" /></template>
         </el-table-column>
         <el-table-column prop="household_unit" label="戶別" width="100" />
         <el-table-column label="信心" width="70">
@@ -86,7 +88,7 @@
         <el-table-column label="截圖" width="85" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.snapshot_url" link type="primary" size="small" @click="preview = row">檢視</el-button>
-            <span v-else style="color: #94a3b8">—</span>
+            <span v-else class="text-muted">—</span>
           </template>
         </el-table-column>
       </el-table>
@@ -107,7 +109,7 @@
       <div v-if="preview" style="text-align: center">
         <div style="margin-bottom: 10px">
           <span class="plate-badge lg">{{ preview.plate_display || '無車牌' }}</span>
-          <span style="margin-left: 12px; color: #64748b">{{ fmtDateTime(preview.occurred_at) }}</span>
+          <span class="text-muted mono" style="margin-left: 12px">{{ fmtDateTime(preview.occurred_at) }}</span>
         </div>
         <img v-if="preview.plate_crop_url" :src="preview.plate_crop_url" style="max-height: 70px; margin-bottom: 10px" />
         <img v-if="preview.snapshot_url" :src="preview.snapshot_url" style="width: 100%; border-radius: 6px" />
@@ -128,6 +130,8 @@ import {
   type AccessEvent,
   type Lane,
 } from '../api'
+import DecisionMark from '../components/DecisionMark.vue'
+import EmptyState from '../components/EmptyState.vue'
 
 const lanes = ref<Lane[]>([])
 const items = ref<AccessEvent[]>([])
@@ -169,10 +173,17 @@ function queryString(withPage = true) {
   return params.toString()
 }
 
+// 首次載入完成前顯示骨架屏
+const loaded = ref(false)
+
 async function load() {
-  const res = await api.get<{ total: number; items: AccessEvent[] }>(`/api/events?${queryString(true)}`)
-  total.value = res.total
-  items.value = res.items
+  try {
+    const res = await api.get<{ total: number; items: AccessEvent[] }>(`/api/events?${queryString(true)}`)
+    total.value = res.total
+    items.value = res.items
+  } finally {
+    loaded.value = true
+  }
 }
 
 function search() {

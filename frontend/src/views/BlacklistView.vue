@@ -2,14 +2,16 @@
   <div>
     <div class="page-header">
       <h2 class="page-title">黑名單管理</h2>
-      <div style="display: flex; gap: 8px">
+      <div class="page-actions">
         <el-input v-model="q" placeholder="搜尋車牌 / 原因" clearable style="width: 220px" @input="load" />
         <el-button type="danger" @click="openForm()">加入黑名單</el-button>
       </div>
     </div>
 
     <el-card shadow="never">
-      <el-table :data="rows" stripe>
+      <el-skeleton v-if="!loaded" animated :rows="6" />
+      <el-table v-else :data="rows" stripe>
+        <template #empty><EmptyState title="黑名單是空的" description="有需要禁止進入的車輛時，點右上角「加入黑名單」" /></template>
         <el-table-column label="車牌" width="150">
           <template #default="{ row }">
             <span class="plate-badge">{{ row.plate_display }}</span>
@@ -69,14 +71,22 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, fmtDateTime, VEHICLE_TYPE_LABEL, type BlacklistEntry, type VehicleType } from '../api'
+import EmptyState from '../components/EmptyState.vue'
 
 const q = ref('')
 const rows = ref<BlacklistEntry[]>([])
 const dlg = ref(false)
 const form = reactive({ id: 0, plate: '', vehicle_type: 'UNKNOWN' as VehicleType, reason: '', is_active: true })
 
+// 首次載入完成前顯示骨架屏
+const loaded = ref(false)
+
 async function load() {
-  rows.value = await api.get<BlacklistEntry[]>(`/api/blacklist?q=${encodeURIComponent(q.value)}`)
+  try {
+    rows.value = await api.get<BlacklistEntry[]>(`/api/blacklist?q=${encodeURIComponent(q.value)}`)
+  } finally {
+    loaded.value = true
+  }
 }
 
 function openForm(b?: BlacklistEntry) {

@@ -2,7 +2,7 @@
   <div>
     <div class="page-header">
       <h2 class="page-title">警示中心</h2>
-      <div style="display: flex; gap: 8px; align-items: center">
+      <div class="page-actions">
         <el-radio-group v-model="filterAck" @change="load">
           <el-radio-button :value="false">未處理</el-radio-button>
           <el-radio-button :value="true">已處理</el-radio-button>
@@ -13,7 +13,9 @@
     </div>
 
     <el-card shadow="never">
-      <el-table :data="alerts" stripe>
+      <el-skeleton v-if="!loaded" animated :rows="6" />
+      <el-table v-else :data="alerts" stripe>
+        <template #empty><EmptyState title="目前沒有警示" description="值班狀況一切正常" /></template>
         <el-table-column label="時間" width="165">
           <template #default="{ row }">{{ fmtDateTime(row.created_at) }}</template>
         </el-table-column>
@@ -56,14 +58,22 @@ import { ElMessage } from 'element-plus'
 import { ALERT_TYPE_LABEL, api, fmtDateTime, type AlertItem } from '../api'
 import { refreshPendingAndAlerts } from '../store'
 import { wsHub } from '../ws'
+import EmptyState from '../components/EmptyState.vue'
 
 const filterAck = ref<boolean | 'all'>(false)
 const alerts = ref<AlertItem[]>([])
 
+// 首次載入完成前顯示骨架屏
+const loaded = ref(false)
+
 async function load() {
-  const qs = filterAck.value === 'all' ? '' : `&acknowledged=${filterAck.value}`
-  const res = await api.get<{ items: AlertItem[] }>(`/api/alerts?page=1&page_size=100${qs}`)
-  alerts.value = res.items
+  try {
+    const qs = filterAck.value === 'all' ? '' : `&acknowledged=${filterAck.value}`
+    const res = await api.get<{ items: AlertItem[] }>(`/api/alerts?page=1&page_size=100${qs}`)
+    alerts.value = res.items
+  } finally {
+    loaded.value = true
+  }
 }
 
 async function ack(id: number) {
