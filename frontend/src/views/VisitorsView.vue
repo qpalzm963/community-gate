@@ -2,7 +2,7 @@
   <div>
     <div class="page-header">
       <h2 class="page-title">訪客管理</h2>
-      <div style="display: flex; gap: 8px; flex-wrap: wrap">
+      <div class="page-actions">
         <el-input v-model="q" placeholder="搜尋姓名 / 車牌 / 戶別" clearable style="width: 220px" @input="load" />
         <el-button type="primary" @click="openForm(undefined, 'RESERVATION')">預約登記</el-button>
         <el-button type="success" @click="openForm(undefined, 'WALK_IN')">現場登記</el-button>
@@ -18,14 +18,18 @@
         <el-tab-pane label="全部紀錄" name="all" />
       </el-tabs>
 
-      <el-table :data="visitors" stripe>
+      <el-skeleton v-if="!loaded" animated :rows="6" />
+
+      <el-table v-else :data="visitors" stripe>
+
+        <template #empty><EmptyState title="這個分類目前沒有訪客" /></template>
         <el-table-column prop="household_unit" label="拜訪戶別" width="110" />
         <el-table-column prop="name" label="訪客姓名" width="110" />
         <el-table-column prop="phone" label="電話" width="120" />
         <el-table-column label="車牌" width="130">
           <template #default="{ row }">
             <span v-if="row.plate_display" class="plate-badge">{{ row.plate_display }}</span>
-            <span v-else style="color: #94a3b8">步行／無車</span>
+            <span v-else class="text-muted">步行／無車</span>
           </template>
         </el-table-column>
         <el-table-column label="車種" width="75">
@@ -135,6 +139,7 @@ import {
   type Visitor,
 } from '../api'
 import { wsHub } from '../ws'
+import EmptyState from '../components/EmptyState.vue'
 
 const scope = ref('today')
 const q = ref('')
@@ -161,13 +166,20 @@ function statusTag(s: string) {
   return 'info'
 }
 
+// 首次載入完成前顯示骨架屏
+const loaded = ref(false)
+
 async function load() {
-  const [list, hh] = await Promise.all([
-    api.get<Visitor[]>(`/api/visitors?scope=${scope.value}&q=${encodeURIComponent(q.value)}`),
-    households.value.length ? Promise.resolve(households.value) : api.get<Household[]>('/api/households'),
-  ])
-  visitors.value = list
-  households.value = hh
+  try {
+    const [list, hh] = await Promise.all([
+      api.get<Visitor[]>(`/api/visitors?scope=${scope.value}&q=${encodeURIComponent(q.value)}`),
+      households.value.length ? Promise.resolve(households.value) : api.get<Household[]>('/api/households'),
+    ])
+    visitors.value = list
+    households.value = hh
+  } finally {
+    loaded.value = true
+  }
 }
 
 function openForm(v?: Visitor, source: 'RESERVATION' | 'WALK_IN' = 'RESERVATION') {

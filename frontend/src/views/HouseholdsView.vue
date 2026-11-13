@@ -2,14 +2,16 @@
   <div>
     <div class="page-header">
       <h2 class="page-title">住戶與車輛白名單</h2>
-      <div style="display: flex; gap: 8px">
+      <div class="page-actions">
         <el-input v-model="q" placeholder="搜尋戶別 / 住戶 / 車牌" clearable style="width: 240px" @input="load" />
         <el-button type="primary" @click="openHousehold()">新增戶別</el-button>
       </div>
     </div>
 
     <el-card shadow="never">
-      <el-table :data="households" row-key="id" default-expand-all>
+      <el-skeleton v-if="!loaded" animated :rows="6" />
+      <el-table v-else :data="households" row-key="id" default-expand-all>
+        <template #empty><EmptyState title="尚未登記任何住戶" description="點右上角「新增戶別」開始建立白名單" /></template>
         <el-table-column type="expand">
           <template #default="{ row }">
             <div style="padding: 4px 20px 12px">
@@ -127,6 +129,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { api, VEHICLE_TYPE_LABEL, type Household, type ResidentVehicle } from '../api'
+import EmptyState from '../components/EmptyState.vue'
 
 const q = ref('')
 const households = ref<Household[]>([])
@@ -147,8 +150,15 @@ const vehForm = reactive({
   note: '',
 })
 
+// 首次載入完成前顯示骨架屏
+const loaded = ref(false)
+
 async function load() {
-  households.value = await api.get<Household[]>(`/api/households?q=${encodeURIComponent(q.value)}`)
+  try {
+    households.value = await api.get<Household[]>(`/api/households?q=${encodeURIComponent(q.value)}`)
+  } finally {
+    loaded.value = true
+  }
 }
 
 function openHousehold(h?: Household) {

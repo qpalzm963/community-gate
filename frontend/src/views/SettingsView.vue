@@ -9,7 +9,7 @@
       <el-tab-pane label="車道與硬體" name="lanes">
         <el-card shadow="never">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px">
-            <span style="color: #64748b; font-size: 13px">
+            <span class="text-muted text-sm">
               手機測試串流範例：Android IP Webcam <code>http://手機IP:8080/video</code>、iPhone DroidCam
               <code>http://手機IP:4747/video</code>；正式機台用 <code>rtsp://...</code> 或本機測試影片路徑。
             </span>
@@ -145,7 +145,7 @@
         </el-form-item>
         <el-form-item label="未知車自動放行">
           <el-switch v-model="laneForm.auto_allow_unknown" />
-          <span style="margin-left: 8px; font-size: 12px; color: #64748b">（建議僅出口車道勾選）</span>
+          <span class="text-muted text-xs" style="margin-left: 8px">（建議僅出口車道勾選）</span>
         </el-form-item>
         <el-form-item label="啟用車道">
           <el-switch v-model="laneForm.enabled" />
