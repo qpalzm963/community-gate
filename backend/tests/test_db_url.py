@@ -8,9 +8,9 @@ from app.db import normalize_db_url
 
 def test_normalize_mysql_url_with_sslaccept():
     sa_url, kwargs = normalize_db_url(
-        "mysql://app_204ad2fdb7f4:secret123@10.3.176.3:3306/aiborn_carstop?sslaccept=accept_invalid_certs"
+        "mysql://app_204ad2fdb7f4:secret123@10.3.176.3:3306/sample_carstop?sslaccept=accept_invalid_certs"
     )
-    assert sa_url == "mysql+pymysql://app_204ad2fdb7f4:secret123@10.3.176.3:3306/aiborn_carstop"
+    assert sa_url == "mysql+pymysql://app_204ad2fdb7f4:secret123@10.3.176.3:3306/sample_carstop"
     assert isinstance(kwargs.get("ssl"), ssl.SSLContext)
     assert kwargs["ssl"].verify_mode == ssl.CERT_NONE
 

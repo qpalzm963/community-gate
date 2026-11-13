@@ -28,7 +28,7 @@ def _set_sqlite_pragma(dbapi_conn, _record):
 
 
 def normalize_db_url(raw_url: str) -> tuple[str, dict]:
-    """轉換外部資料庫連線字串（例如 aiBorn 的 mysql://...?sslaccept=accept_invalid_certs）。"""
+    """轉換外部資料庫連線字串（例如 mysql://...?sslaccept=accept_invalid_certs）。"""
     url = raw_url.strip()
     if url.startswith("mysql://"):
         url = "mysql+pymysql://" + url[len("mysql://") :]

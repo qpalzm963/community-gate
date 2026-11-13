@@ -97,14 +97,13 @@ cd frontend && npm run type-check
 
 ---
 
-## 容器化與 GitLab CI / aiBorn 自動部署
+## 容器化與 Docker 部署
 
-完整設定、環境變數列表、MySQL + GCS 磁碟區配置與排解步驟請參閱 [部署指南（docs/deployment.md）](docs/deployment.md)。
+完整設定與環境變數列表請參閱 [部署指南（docs/deployment.md）](docs/deployment.md)。
 
 摘要：
 - **Dockerfile**：兩階段建置（Node 22 編譯 `frontend/` → Python 3.12 執行 `uvicorn`，監聽 `0.0.0.0:${PORT:-8000}`）。
-- **資料庫與磁碟區**：本機單機版預設使用 SQLite；雲端（aiBorn）支援透過 `DATABASE_URL` 連接 MySQL 8.4（SSL），並以 `GATE_SNAPSHOT_DIR` 將截圖存至磁碟區（如 `/mnt/gcs/snapshots`）。
-- **自動建管理員帳號**：設定 `GATE_ADMIN_USERNAME` 與 `GATE_ADMIN_PASSWORD`（選填 `GATE_ADMIN_DISPLAY_NAME`），首次啟動時會自動建立該帳號。
-- **GitLab CI/CD**：推送至預設分支（`main`）會由 [.gitlab-ci.yml](.gitlab-ci.yml) 打包 `HEAD` 並透過 `AIBORN_DEPLOY_TOKEN`（Masked + Protected）觸發 aiBorn 部署。
+- **資料庫與截圖儲存**：單機版預設使用 SQLite（`data/app.db`）；容器或雲端環境支援透過 `DATABASE_URL` 連接 MySQL 8.4（SSL），並以 `GATE_SNAPSHOT_DIR` 自訂截圖儲存路徑。
+- **自動建管理員帳號**：可在容器環境設定 `GATE_ADMIN_USERNAME` 與 `GATE_ADMIN_PASSWORD`（選填 `GATE_ADMIN_DISPLAY_NAME`），首次啟動時會自動建立該帳號。
 
 
