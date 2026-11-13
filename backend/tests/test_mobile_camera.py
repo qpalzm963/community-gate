@@ -3,9 +3,19 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
+from app.api.system import get_lan_ip
 from app.auth import create_camera_token, verify_camera_token
 from app.ssl_cert import ensure_self_signed_cert
 from app.vision.camera import LaneWorker
+
+
+def test_get_lan_ip():
+    # 傳入合法的外部 IP 應優先採用
+    assert get_lan_ip("192.168.1.100") == "192.168.1.100"
+    # 傳入 169.254.x.x 應自動過濾並重選有效 IP
+    assert not get_lan_ip("169.254.8.1").startswith("169.254.")
+    # 傳入 localhost/127.0.0.1 應重選有效 IP
+    assert get_lan_ip("localhost") != "localhost"
 
 
 def test_camera_token_roundtrip():
