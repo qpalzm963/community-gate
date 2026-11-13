@@ -163,7 +163,8 @@ class VoteParams:
 class PlateVoter:
     """單一車道的多幀投票器（執行緒安全）。
 
-    - 視窗 ``window_sec`` 內同一車牌出現 ≥ ``min_hits`` 次且平均信心值 ≥ ``min_confidence`` 才確認。
+    - 視窗 ``window_sec`` 內同一車牌（含編輯距離 ≤ 1 的近似讀數）出現 ≥ ``min_hits`` 次且平均信心值
+      ≥ ``min_confidence`` 才確認，確認結果取群內出現最多次的讀法。
     - 已確認的車牌（及編輯距離 ≤ 1 的近似誤讀）只要持續被看到，就不會重複觸發；
       最後一次看到後超過 ``dedup_sec`` 秒才會再次觸發。
     """
@@ -195,17 +196,31 @@ class PlateVoter:
 
             obs = Observation(plate, confidence, ts, payload)
             self._obs.append(obs)
-            same = [o for o in self._obs if o.plate == plate]
-            if len(same) < p.min_hits:
+            # 同一車牌常被讀錯一個字（ABC1234 / ABC1Z34），編輯距離 ≤ 1 的觀測算同一群一起計票，
+            # 否則票數被拆散、遲遲達不到 min_hits 而漏辨識
+            group = [o for o in self._obs if edit_distance(o.plate, plate) <= 1]
+            if len(group) < p.min_hits:
                 return None
-            avg = sum(o.confidence for o in same) / len(same)
+            avg = sum(o.confidence for o in group) / len(group)
             if avg < p.min_confidence:
                 return None
-            best = max(same, key=lambda o: o.confidence)
-            self._recent[plate] = ts
+            winner = self._majority(group)
+            best = max((o for o in group if o.plate == winner), key=lambda o: o.confidence)
+            self._recent[winner] = ts
             # 移除視窗內所有近似觀測，避免誤讀版本再被確認
-            self._obs = deque(o for o in self._obs if edit_distance(o.plate, plate) > 1)
-            return ConfirmedPlate(plate, round(avg, 4), len(same), best)
+            counted = {id(o) for o in group}
+            self._obs = deque(o for o in self._obs if id(o) not in counted and edit_distance(o.plate, winner) > 1)
+            return ConfirmedPlate(winner, round(avg, 4), len(group), best)
+
+    @staticmethod
+    def _majority(group: list[Observation]) -> str:
+        """群內出現最多次的讀法；同票時取信心值總和較高者，再同則取最早出現者。"""
+        stats: dict[str, list[float]] = {}
+        for o in group:
+            s = stats.setdefault(o.plate, [0, 0.0])
+            s[0] += 1
+            s[1] += o.confidence
+        return max(stats, key=lambda k: (stats[k][0], stats[k][1]))
 
     def reset(self) -> None:
         with self._lock:
