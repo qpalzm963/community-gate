@@ -241,7 +241,12 @@ async def lane_stream(lane_id: int, request: Request, _: User = Depends(current_
             # 扣掉編碼與送出花的時間，避免「編碼時間 + 固定 sleep」把實際 fps 拉低
             await asyncio.sleep(max(0.0, interval - (last_sent - t0)) if online else 1.0)
 
-    return StreamingResponse(gen(), media_type=f"multipart/x-mixed-replace; boundary={boundary}", headers={"Cache-Control": "no-store"})
+    # X-Accel-Buffering: no → 叫反向代理（nginx 類）不要緩衝串流，否則後台畫面會延遲、一段一段跳
+    return StreamingResponse(
+        gen(),
+        media_type=f"multipart/x-mixed-replace; boundary={boundary}",
+        headers={"Cache-Control": "no-store", "X-Accel-Buffering": "no"},
+    )
 
 
 def _is_usable_ip(ip: str) -> bool:
