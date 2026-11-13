@@ -35,6 +35,8 @@ class WsHub {
     }
 
     ws.onclose = () => {
+      // 已被 disconnect() 或新連線取代的舊 socket 晚到的 close，不可動到目前連線的狀態
+      if (this.ws !== ws) return
       this.ws = null
       wsState.connected = false
       if (this.active) {
