@@ -1,4 +1,9 @@
+import { reactive } from 'vue'
+
 type Listener = (data: Record<string, unknown>) => void
+
+/** 即時推播連線狀態（頁首顯示用） */
+export const wsState = reactive({ connected: false })
 
 class WsHub {
   private ws: WebSocket | null = null
@@ -15,6 +20,10 @@ class WsHub {
     const ws = new WebSocket(`${proto}//${location.host}/ws/events`)
     this.ws = ws
 
+    ws.onopen = () => {
+      wsState.connected = true
+    }
+
     ws.onmessage = (ev) => {
       try {
         const msg = JSON.parse(ev.data) as { type: string; data?: Record<string, unknown> }
@@ -27,6 +36,7 @@ class WsHub {
 
     ws.onclose = () => {
       this.ws = null
+      wsState.connected = false
       if (this.active) {
         this.reconnectTimer = window.setTimeout(() => this.connect(), 3000)
       }
@@ -41,6 +51,7 @@ class WsHub {
     }
     this.ws?.close()
     this.ws = null
+    wsState.connected = false
   }
 
   on(type: string, fn: Listener): () => void {
