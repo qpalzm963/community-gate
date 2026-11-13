@@ -20,6 +20,7 @@ DEFAULTS: dict[str, tuple[Any, type, str, float | None, float | None]] = {
     "vote_min_confidence": (0.8, float, "多幀投票：平均信心值門檻（0~1）", 0, 1),
     "dedup_sec": (30.0, float, "同車道同車牌去重秒數", 1, 3600),
     "overstay_grace_min": (15, int, "訪客逾時寬限（分鐘）", 0, 1440),
+    "pending_timeout_min": (10, int, "待處理事件逾時自動結案（分鐘，0 = 不自動結案）", 0, 1440),
     "plate_strict_format": (True, bool, "只接受符合台灣車牌格式的辨識結果", None, None),
     "alert_sound": (True, bool, "警示時播放音效", None, None),
 }
