@@ -91,6 +91,12 @@ import QRCode from 'qrcode'
 import { ElMessage } from 'element-plus'
 import { api } from '../api'
 
+/** QR code 色彩取自 token（--cg-qr-ink / --cg-qr-bg），canvas 無法直接吃 CSS 變數 */
+function qrColors() {
+  const css = getComputedStyle(document.documentElement)
+  return { dark: css.getPropertyValue('--cg-qr-ink').trim(), light: css.getPropertyValue('--cg-qr-bg').trim() }
+}
+
 interface LaneItem {
   id: number
   name: string
@@ -199,10 +205,7 @@ async function rebuildUrl() {
     qrCodeDataUrl.value = await QRCode.toDataURL(url, {
       width: 280,
       margin: 2,
-      color: {
-        dark: '#0f172a',
-        light: '#ffffff',
-      },
+      color: qrColors(),
     })
   } catch {
     qrCodeDataUrl.value = ''
@@ -246,36 +249,36 @@ function onClose() {
 }
 
 .conn-status-bar.waiting {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--cg-surface-sunken);
+  color: var(--cg-text-3);
 }
 
 .conn-status-bar.waiting .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: var(--cg-text-3);
 }
 
 .conn-status-bar.online {
-  background: #ecfdf5;
-  color: #059669;
+  background: color-mix(in srgb, var(--cg-success) 10%, var(--cg-surface));
+  color: var(--cg-success-text);
 }
 
 .conn-status-bar.online .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 6px #10b981;
+  background: var(--cg-success);
+  box-shadow: 0 0 6px var(--cg-success);
 }
 
 .qr-wrapper {
-  background: #ffffff;
+  background: var(--cg-qr-bg);
   padding: 10px;
-  border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e2e8f0;
+  border-radius: var(--cg-radius-md);
+  box-shadow: var(--cg-shadow-md);
+  border: 1px solid var(--cg-border);
   margin-bottom: 16px;
 }
 
@@ -291,7 +294,7 @@ function onClose() {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--cg-text-3);
 }
 
 .url-section {
@@ -318,20 +321,20 @@ function onClose() {
 
 .tip-warn {
   margin-top: 10px;
-  background: #fffbe6;
-  border: 1px solid #ffe58f;
-  color: #d46b08;
+  background: color-mix(in srgb, var(--cg-warning) 8%, var(--cg-surface));
+  border: 1px solid color-mix(in srgb, var(--cg-warning) 35%, var(--cg-surface));
+  color: var(--cg-warning-text);
 }
 
 .tip-https {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  color: #1e40af;
+  background: color-mix(in srgb, var(--cg-navy) 8%, var(--cg-surface));
+  border: 1px solid color-mix(in srgb, var(--cg-navy) 30%, var(--cg-surface));
+  color: var(--cg-text);
 }
 
 .tip-http {
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  color: #b45309;
+  background: color-mix(in srgb, var(--cg-warning) 8%, var(--cg-surface));
+  border: 1px solid color-mix(in srgb, var(--cg-warning) 35%, var(--cg-surface));
+  color: var(--cg-warning-text);
 }
 </style>
