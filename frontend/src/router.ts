@@ -7,11 +7,13 @@ import BlacklistView from './views/BlacklistView.vue'
 import EventsView from './views/EventsView.vue'
 import AlertsView from './views/AlertsView.vue'
 import SettingsView from './views/SettingsView.vue'
+import MobileCamView from './views/MobileCamView.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
+    { path: '/login', name: 'login', component: LoginView, meta: { public: true, standalone: true } },
+    { path: '/mobile-cam', name: 'mobile-cam', component: MobileCamView, meta: { public: true, standalone: true } },
     { path: '/', name: 'monitor', component: MonitorView },
     { path: '/households', name: 'households', component: HouseholdsView },
     { path: '/visitors', name: 'visitors', component: VisitorsView },

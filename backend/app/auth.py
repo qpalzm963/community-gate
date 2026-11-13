@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Request, WebSocket, status
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pwdlib import PasswordHash
 from sqlalchemy.orm import Session
 
@@ -66,3 +67,18 @@ def create_user(db: Session, username: str, password: str, display_name: str = "
     db.commit()
     db.refresh(user)
     return user
+
+
+def create_camera_token(lane_id: int, secret_key: str, expires_in_sec: int = 86400) -> str:
+    s = URLSafeTimedSerializer(secret_key, salt="camera-push")
+    return s.dumps({"lane_id": lane_id})
+
+
+def verify_camera_token(token: str, lane_id: int, secret_key: str, max_age: int = 86400) -> bool:
+    s = URLSafeTimedSerializer(secret_key, salt="camera-push")
+    try:
+        data = s.loads(token, max_age=max_age)
+        return data.get("lane_id") == lane_id
+    except (BadSignature, SignatureExpired, Exception):
+        return False
+

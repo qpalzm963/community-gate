@@ -92,6 +92,16 @@ def cmd_serve(args: argparse.Namespace) -> int:
         db.close()
     if not has_user:
         print("提醒：目前尚無任何操作帳號，請先執行 `uv run gate create-admin` 建立管理員帳號。", file=sys.stderr)
+
+    ssl_certfile = args.ssl_cert
+    ssl_keyfile = args.ssl_key
+    if args.ssl and (not ssl_certfile or not ssl_keyfile):
+        from .ssl_cert import ensure_self_signed_cert
+        cert_p, key_p = ensure_self_signed_cert(cfg.data_dir)
+        ssl_certfile = str(cert_p)
+        ssl_keyfile = str(key_p)
+        print(f"已啟用 HTTPS（使用本機自我簽署憑證：{cert_p}）")
+
     uvicorn.run(
         "app.main:create_app",
         factory=True,
@@ -99,6 +109,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
         port=port,
         reload=args.reload,
         log_level="info",
+        ssl_keyfile=ssl_keyfile,
+        ssl_certfile=ssl_certfile,
     )
     return 0
 
@@ -123,8 +135,11 @@ def build_parser() -> argparse.ArgumentParser:
     b.set_defaults(func=cmd_backup)
 
     s = sub.add_parser("serve", help="啟動單機版伺服器")
-    s.add_argument("--host", help="監聽位址（預設 127.0.0.1）")
+    s.add_argument("--host", help="監聽位址（預設 127.0.0.1，手機連線建議 0.0.0.0）")
     s.add_argument("--port", type=int, help="監聽埠號（預設 8000）")
+    s.add_argument("--ssl", action="store_true", help="啟用 HTTPS（手機瀏覽器相機權限必備）")
+    s.add_argument("--ssl-cert", help="自訂 SSL 憑證路徑")
+    s.add_argument("--ssl-key", help="自訂 SSL 私鑰路徑")
     s.add_argument("--reload", action="store_true", help="開發模式自動重載")
     s.set_defaults(func=cmd_serve)
     return p

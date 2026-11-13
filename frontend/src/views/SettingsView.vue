@@ -34,8 +34,9 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="210">
+            <el-table-column label="操作" width="280">
               <template #default="{ row }">
+                <el-button link type="warning" size="small" @click="showQr(row)">📱 手機鏡頭</el-button>
                 <el-button link type="success" size="small" @click="testGate(row)">測試開閘</el-button>
                 <el-button link type="primary" size="small" @click="openLane(row)">設定</el-button>
                 <el-button link type="danger" size="small" @click="delLane(row)">刪除</el-button>
@@ -124,6 +125,11 @@
             placeholder="http://手機IP:8080/video 或 rtsp://... 或 0 或影片檔路徑"
           />
         </el-form-item>
+        <el-form-item v-if="laneForm.id" label="手機當攝影機">
+          <el-button size="small" type="warning" plain @click="showQr(laneForm as any)">
+            📱 掃描 QR Code 連線手機鏡頭
+          </el-button>
+        </el-form-item>
         <el-form-item label="柵欄驅動">
           <el-select v-model="laneForm.gate_driver" style="width: 100%">
             <el-option v-for="d in drivers" :key="d.value" :label="d.label" :value="d.value" />
@@ -169,12 +175,15 @@
         <el-button type="primary" @click="createUser">建立</el-button>
       </template>
     </el-dialog>
+
+    <MobileCameraQrDialog v-model="qrDlg" :lane="qrLane" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import MobileCameraQrDialog from '../components/MobileCameraQrDialog.vue'
 import {
   api,
   DIRECTION_LABEL,
@@ -193,6 +202,14 @@ const settingMeta = ref<SettingMeta[]>([])
 const settingValues = reactive<Record<string, any>>({})
 const savingSettings = ref(false)
 const users = ref<User[]>([])
+
+const qrDlg = ref(false)
+const qrLane = ref<Lane | null>(null)
+
+function showQr(row: any) {
+  qrLane.value = row
+  qrDlg.value = true
+}
 
 const laneDlg = ref(false)
 const laneForm = reactive({

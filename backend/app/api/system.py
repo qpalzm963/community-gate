@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import socket
 
 import cv2
 import numpy as np
@@ -12,7 +13,7 @@ from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from ..access.service import AccessError, handle_detection, manual_open
-from ..auth import current_user, ws_user
+from ..auth import create_camera_token, current_user, verify_camera_token, ws_user
 from ..config import get_config
 from ..db import get_db
 from ..gate import DRIVER_LABELS, build_gate
@@ -224,6 +225,87 @@ async def lane_stream(lane_id: int, request: Request, _: User = Depends(current_
             await asyncio.sleep(0.1 if w and w.online else 1.0)
 
     return StreamingResponse(gen(), media_type=f"multipart/x-mixed-replace; boundary={boundary}", headers={"Cache-Control": "no-store"})
+
+
+def get_lan_ip() -> str:
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("10.255.255.255", 1))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+@router.get("/api/lanes/{lane_id}/camera-token")
+def lane_camera_token(lane_id: int, request: Request, _: User = Depends(current_user), db: Session = Depends(get_db)):
+    lane = _get_lane(db, lane_id)
+    cfg = get_config()
+    token = create_camera_token(lane.id, cfg.get_secret_key())
+    lan_ip = get_lan_ip()
+    port = request.url.port or (443 if request.url.scheme == "https" else 80)
+    scheme = request.url.scheme
+    return {
+        "lane_id": lane.id,
+        "lane_name": lane.name,
+        "token": token,
+        "lan_ip": lan_ip,
+        "port": port,
+        "scheme": scheme,
+        "connect_url": f"{scheme}://{lan_ip}:{port}/mobile-cam?lane={lane.id}&token={token}",
+    }
+
+
+@router.websocket("/ws/lanes/{lane_id}/push")
+async def ws_lane_camera_push(ws: WebSocket, lane_id: int, token: str):
+    cfg = get_config()
+    if not verify_camera_token(token, lane_id, cfg.get_secret_key()):
+        await ws.close(code=4403, reason="憑證無效或已過期")
+        return
+
+    await ws.accept()
+    mgr = _manager()
+    worker = mgr.get(lane_id) if mgr else None
+    if worker is None:
+        await ws.close(code=4404, reason="車道未啟動")
+        return
+
+    q = bus.subscribe()
+
+    async def _bus_listener():
+        try:
+            while True:
+                msg = await q.get()
+                if msg.get("type") == "access_event":
+                    data = msg.get("data", {})
+                    if data.get("lane_id") == lane_id:
+                        await ws.send_json({
+                            "type": "plate_confirmed",
+                            "plate": data.get("plate_display") or data.get("plate"),
+                            "category": data.get("category"),
+                            "decision": data.get("decision"),
+                        })
+        except Exception:
+            pass
+
+    bus_task = asyncio.create_task(_bus_listener())
+    try:
+        while True:
+            message = await ws.receive()
+            if "bytes" in message and message["bytes"]:
+                data = message["bytes"]
+                frame = await run_in_threadpool(cv2.imdecode, np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+                if frame is not None:
+                    worker.push_frame(frame)
+            elif "text" in message and message["text"]:
+                pass
+    except Exception:
+        pass
+    finally:
+        bus_task.cancel()
+        bus.unsubscribe(q)
+        worker.push_stop()
 
 
 # ------------------------------------------------------------------ 系統設定

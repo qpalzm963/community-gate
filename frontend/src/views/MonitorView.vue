@@ -67,6 +67,7 @@
                 <el-tag :type="lane.status?.online ? 'success' : 'info'" size="small">
                   {{ lane.status?.online ? `連線中 ${lane.status.capture_fps ?? ''}fps` : '離線 / 未接攝影機' }}
                 </el-tag>
+                <el-button size="small" @click="showQr(lane)">📱 手機鏡頭</el-button>
                 <el-button type="primary" size="small" @click="manualOpenGate(lane)">手動開閘</el-button>
               </div>
             </div>
@@ -184,6 +185,8 @@
         <img v-if="previewEvent.snapshot_url" :src="previewEvent.snapshot_url" style="width: 100%; border-radius: 6px" />
       </div>
     </el-dialog>
+
+    <MobileCameraQrDialog v-model="qrDlg" :lane="qrLane" />
   </div>
 </template>
 
@@ -192,6 +195,7 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type UploadRequestOptions } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
+import MobileCameraQrDialog from '../components/MobileCameraQrDialog.vue'
 import {
   api,
   CATEGORY_LABEL,
@@ -216,6 +220,14 @@ const simPlate = reactive<Record<number, string>>({})
 const previewEvent = ref<AccessEvent | null>(null)
 const nowTick = ref(Date.now())
 let timer: number | null = null
+
+const qrDlg = ref(false)
+const qrLane = ref<Lane | null>(null)
+
+function showQr(lane: Lane) {
+  qrLane.value = lane
+  qrDlg.value = true
+}
 
 const previewVisible = computed({
   get: () => !!previewEvent.value,

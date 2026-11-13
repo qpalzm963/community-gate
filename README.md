@@ -44,7 +44,24 @@ npm run build   # 會自動輸出至 backend/app/static/
 
 ---
 
-## 用手機當 IP 攝影機（開發／測試）
+## 用手機當攝影機（開發／測試）
+
+### 方式一：掃描 QR Code 即開即用（推薦，免裝任何 App）
+
+系統已內建手機瀏覽器相機推播功能：
+1. 啟動伺服器並開啟 HTTPS 與區網監聽：
+   ```bash
+   uv run gate serve --host 0.0.0.0 --port 8000 --ssl
+   ```
+   *(系統會自動使用 `cryptography` 在 `data/` 產生自我簽署憑證)*
+2. 電腦瀏覽器進入系統（例如 `https://192.168.x.x:8000`）。
+3. 在 **「即時監控」** 或 **「系統設定 → 車道與硬體」** 點擊 **「📱 手機鏡頭」** 按鈕，畫面上會彈出 QR Code。
+4. 使用手機相機掃描 QR Code 開啟連結：
+   - 首次進入若提示「非私人連線 / 不安全」，點選 **「進階」** $\rightarrow$ **「繼續前往」**。
+   - 允許相機存取權限。
+5. 手機畫面立即變身為該車道的即時車牌辨識攝影機，後台監控畫面同步顯示串流與即時車牌辨識結果！
+
+### 方式二：使用第三方 IP 攝影機 App
 
 讓手機與電腦連線到同一個 Wi‑Fi 後：
 
@@ -53,7 +70,7 @@ npm run build   # 會自動輸出至 backend/app/static/
 - **iPhone**：安裝 **DroidCam** 或 **IP Camera Lite** → 取得串流網址，例如：
   `http://<手機IP>:4747/video`
 
-登入系統後進入 **「系統設定 → 車道與硬體」**，在入口／出口車道的「攝影機來源」填入上述網址（正式環境改填 `rtsp://...`，或填入本機測試影片路徑／USB 攝影機編號 `0`），儲存後立即連線。
+在「系統設定 → 車道與硬體」將上述網址貼入「攝影機來源」即可。
 
 > **機車辨識提醒**：台灣機車車牌較小且位於車尾，建議機車道攝影機低角度、近距離拍攝車尾，以確保辨識穩定度。
 
@@ -66,6 +83,7 @@ uv run gate create-admin                 # 新增操作帳號
 uv run gate reset-password <username>    # 重設指定帳號密碼
 uv run gate backup                       # 備份 data/app.db 到 data/backup_*.db
 uv run gate serve --host 127.0.0.1 --port 8000
+uv run gate serve --host 0.0.0.0 --port 8000 --ssl   # 開啟 HTTPS 支援手機掃碼攝影機
 ```
 
 ---

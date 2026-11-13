@@ -83,6 +83,36 @@ class LaneWorker:
         self.last_plate_at = 0.0
         self._threads: list[threading.Thread] = []
 
+        self._last_push_ts = 0.0
+        self._push_count = 0
+        self._push_t0 = time.monotonic()
+
+    # ------------------------------------------------------------------ 推播串流
+    @property
+    def is_pushing(self) -> bool:
+        return (time.monotonic() - self._last_push_ts) < 4.0
+
+    def push_frame(self, frame: np.ndarray) -> None:
+        with self._frame_lock:
+            self._frame = frame
+            self._frame_ts = time.monotonic()
+            self._frame_seq += 1
+        now = time.monotonic()
+        self._last_push_ts = now
+        if not self.online:
+            self._set_status(True)
+        self._push_count += 1
+        el = now - self._push_t0
+        if el >= 2.0:
+            self.capture_fps = round(self._push_count / el, 1)
+            self._push_count = 0
+            self._push_t0 = now
+
+    def push_stop(self) -> None:
+        self._last_push_ts = 0.0
+        if not self.source:
+            self._set_status(False, "手機攝影機已離線")
+
     # ------------------------------------------------------------------ 控制
     def start(self) -> None:
         self._stop.clear()
@@ -139,8 +169,12 @@ class LaneWorker:
         backoff = 1.0
         first_fail_reported = False
         while not self._stop.is_set():
+            if self.is_pushing:
+                self._stop.wait(1.0)
+                continue
             if not self.source:
-                self._set_status(False, "未設定攝影機來源")
+                if not self.online:
+                    self._set_status(False, "未設定攝影機來源")
                 self._stop.wait(2)
                 continue
             file_mode = is_file_source(self.source)
@@ -167,6 +201,8 @@ class LaneWorker:
             count, t0 = 0, time.monotonic()
             fails = 0
             while not self._stop.is_set():
+                if self.is_pushing:
+                    break
                 ok, frame = cap.read()
                 if not ok or frame is None:
                     if file_mode:
@@ -188,7 +224,7 @@ class LaneWorker:
                 if file_mode:
                     time.sleep(1.0 / native_fps)
             cap.release()
-            if not self._stop.is_set():
+            if not self._stop.is_set() and not self.is_pushing:
                 self._set_status(False, "影像中斷，重新連線中")
                 self._stop.wait(backoff)
 
@@ -251,4 +287,5 @@ class LaneWorker:
             "capture_fps": self.capture_fps,
             "last_plate": format_plate(self.last_plate),
             "last_plate_at": self.last_plate_at or None,
+            "is_push": self.is_pushing,
         }

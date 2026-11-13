@@ -1,5 +1,5 @@
 <template>
-  <router-view v-if="isLoginRoute" />
+  <router-view v-if="isStandaloneRoute" />
   <el-container v-else class="app-shell">
     <el-aside width="220px" class="sidebar">
       <div class="brand">
@@ -89,7 +89,7 @@ import PendingDecisionDialog from './components/PendingDecisionDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
-const isLoginRoute = computed(() => route.path === '/login')
+const isStandaloneRoute = computed(() => Boolean(route.meta.standalone || route.path === '/login' || route.path === '/mobile-cam'))
 
 const pwDialog = ref(false)
 const pwSaving = ref(false)
@@ -98,7 +98,7 @@ const pwForm = reactive({ old_password: '', new_password: '' })
 setUnauthorizedHandler(() => {
   appState.user = null
   wsHub.disconnect()
-  if (route.path !== '/login') {
+  if (!route.meta.public && route.path !== '/login' && route.path !== '/mobile-cam') {
     void router.push('/login')
   }
 })
@@ -115,7 +115,7 @@ async function ensureSession() {
     }
   } catch {
     appState.user = null
-    if (route.path !== '/login') {
+    if (!route.meta.public && route.path !== '/login' && route.path !== '/mobile-cam') {
       void router.replace('/login')
     }
   }
