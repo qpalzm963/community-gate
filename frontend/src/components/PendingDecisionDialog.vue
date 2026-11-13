@@ -13,7 +13,9 @@
       </div>
     </template>
 
-    <transition name="fade-rise" mode="out-in">
+    <!-- 只做進場動畫、離場立即隱藏：切換事件時 currentEvent 已經是下一筆，
+         若讓上一筆畫面淡出，警衛可能看著 A 車卻對 B 車開閘 -->
+    <transition name="fade-rise" leave-active-class="leave-instant">
       <div v-if="currentEvent" :key="currentEvent.id">
         <section class="evidence">
           <div class="media">
@@ -38,63 +40,63 @@
         </section>
 
         <section class="decision">
-      <el-radio-group v-model="mode" size="large" class="mode-group">
-        <el-radio-button value="once">放行一次</el-radio-button>
-        <el-radio-button value="visitor">登記為訪客並放行</el-radio-button>
-        <el-radio-button value="deny">拒絕進入</el-radio-button>
-      </el-radio-group>
+          <el-radio-group v-model="mode" size="large" class="mode-group">
+            <el-radio-button value="once">放行一次</el-radio-button>
+            <el-radio-button value="visitor">登記為訪客並放行</el-radio-button>
+            <el-radio-button value="deny">拒絕進入</el-radio-button>
+          </el-radio-group>
 
-      <el-form v-if="mode === 'visitor'" label-width="90px" size="default">
-        <el-row :gutter="12">
-          <el-col :span="12">
-            <el-form-item label="拜訪戶別" required>
-              <el-select v-model="visitorForm.household_id" filterable placeholder="選擇戶別" style="width: 100%">
-                <el-option v-for="h in households" :key="h.id" :label="`${h.unit_no} ${h.owner_name}`" :value="h.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="訪客姓名" required>
-              <el-input v-model="visitorForm.name" placeholder="例如：林先生 / 宅配" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="聯絡電話">
-              <el-input v-model="visitorForm.phone" placeholder="選填" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="車種">
-              <el-radio-group v-model="visitorForm.vehicle_type">
-                <el-radio value="CAR">汽車</el-radio>
-                <el-radio value="MOTO">機車</el-radio>
-              </el-radio-group>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="授權時數">
-              <el-select v-model="hours" style="width: 100%">
-                <el-option :value="1" label="1 小時" />
-                <el-option :value="2" label="2 小時" />
-                <el-option :value="4" label="4 小時" />
-                <el-option :value="8" label="8 小時" />
-                <el-option :value="24" label="24 小時" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="事由">
-              <el-input v-model="visitorForm.purpose" placeholder="例如：親友來訪 / 維修" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </el-form>
+          <el-form v-if="mode === 'visitor'" label-width="90px" size="default">
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item label="拜訪戶別" required>
+                  <el-select v-model="visitorForm.household_id" filterable placeholder="選擇戶別" style="width: 100%">
+                    <el-option v-for="h in households" :key="h.id" :label="`${h.unit_no} ${h.owner_name}`" :value="h.id" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="訪客姓名" required>
+                  <el-input v-model="visitorForm.name" placeholder="例如：林先生 / 宅配" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="聯絡電話">
+                  <el-input v-model="visitorForm.phone" placeholder="選填" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="車種">
+                  <el-radio-group v-model="visitorForm.vehicle_type">
+                    <el-radio value="CAR">汽車</el-radio>
+                    <el-radio value="MOTO">機車</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="授權時數">
+                  <el-select v-model="hours" style="width: 100%">
+                    <el-option :value="1" label="1 小時" />
+                    <el-option :value="2" label="2 小時" />
+                    <el-option :value="4" label="4 小時" />
+                    <el-option :value="8" label="8 小時" />
+                    <el-option :value="24" label="24 小時" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="事由">
+                  <el-input v-model="visitorForm.purpose" placeholder="例如：親友來訪 / 維修" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </el-form>
 
-      <el-form v-else label-width="90px">
-        <el-form-item label="備註">
-          <el-input v-model="note" :placeholder="mode === 'deny' ? '例如：未事先聯繫住戶' : '例如：快遞臨停 / 住戶電話確認'" />
-        </el-form-item>
-      </el-form>
+          <el-form v-else label-width="90px">
+            <el-form-item label="備註">
+              <el-input v-model="note" :placeholder="mode === 'deny' ? '例如：未事先聯繫住戶' : '例如：快遞臨停 / 住戶電話確認'" />
+            </el-form-item>
+          </el-form>
         </section>
       </div>
     </transition>
@@ -220,6 +222,9 @@ async function submit() {
 </script>
 
 <style scoped>
+.leave-instant {
+  display: none;
+}
 .dlg-head {
   display: flex;
   align-items: center;
