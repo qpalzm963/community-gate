@@ -75,6 +75,7 @@ class LaneWorker:
         self._frame_seq = 0
         self._overlay: list[OverlayBox] = []
         self._overlay_ts = 0.0
+        self._jpeg_cache: tuple[tuple, bytes] | None = None
 
         self.online = False
         self.last_error = ""
@@ -138,11 +139,21 @@ class LaneWorker:
         with self._frame_lock:
             return (None if self._frame is None else self._frame.copy()), self._frame_ts
 
+    @property
+    def frame_seq(self) -> int:
+        return self._frame_seq
+
     def annotated_jpeg(self, max_width: int = 960, quality: int = 75) -> bytes | None:
+        # 同一張影格 + 同一組框只編碼一次：多個監控視窗共用，也避免串流重送舊影格時白白重編碼
+        overlay_on = time.monotonic() - self._overlay_ts < 1.0
+        key = (self._frame_seq, self._overlay_ts if overlay_on else 0.0, max_width, quality)
+        cached = self._jpeg_cache
+        if cached is not None and cached[0] == key:
+            return cached[1]
         frame, _ = self.latest_frame()
         if frame is None:
             return None
-        if time.monotonic() - self._overlay_ts < 1.0:
+        if overlay_on:
             for box in self._overlay:
                 x1, y1, x2, y2 = box.bbox
                 color = (60, 200, 60) if box.ok else (0, 165, 255)
@@ -152,7 +163,11 @@ class LaneWorker:
         if w > max_width:
             frame = cv2.resize(frame, (max_width, int(h * max_width / w)))
         ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-        return buf.tobytes() if ok else None
+        if not ok:
+            return None
+        jpg = buf.tobytes()
+        self._jpeg_cache = (key, jpg)
+        return jpg
 
     def _set_status(self, online: bool, error: str = "") -> None:
         changed = online != self.online

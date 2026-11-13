@@ -65,3 +65,17 @@ def test_lane_worker_pipeline_end_to_end(app_env):
         assert db.query(AccessEvent).filter(AccessEvent.plate == "ABC1234").count() == 1
     finally:
         db.close()
+
+
+def test_annotated_jpeg_encodes_each_frame_once():
+    """多個監控視窗與串流重送同一張影格時不可重複編碼（否則 CPU 被吃掉、串流 fps 下降），
+    但推入新影格後必須產生新畫面，不能卡在舊快取。"""
+    worker = LaneWorker(1, "t", "", lambda: FakeRecognizer(), on_confirm=lambda *a: None)
+    worker.push_frame(np.zeros((480, 640, 3), np.uint8))
+    first = worker.annotated_jpeg()
+    assert first is not None
+    assert worker.annotated_jpeg() is first  # 同一影格 → 直接回快取
+
+    worker.push_frame(np.full((480, 640, 3), 255, np.uint8))
+    second = worker.annotated_jpeg()
+    assert second is not None and second != first
