@@ -1,4 +1,4 @@
-"""排程任務：訪客逾時未離場檢查（每分鐘）、截圖清理（每日一次）。"""
+"""排程任務：訪客逾時未離場檢查、待處理事件逾時結案（每分鐘）、截圖清理（每日一次）。"""
 from __future__ import annotations
 
 import asyncio
@@ -7,9 +7,9 @@ from datetime import date, datetime, timedelta
 
 from sqlalchemy import select, update
 
-from ..access.service import alert_dict, create_alert
+from ..access.service import alert_dict, create_alert, event_dict
 from ..db import SessionLocal
-from ..models import AccessEvent, AlertType, Visitor, VisitorStatus, now
+from ..models import AccessEvent, Alert, AlertType, EventDecision, Visitor, VisitorStatus, now
 from ..vision.plate import format_plate
 from . import snapshots
 from .events import bus
@@ -46,6 +46,52 @@ def check_overstay(at: datetime | None = None) -> list[int]:
     return flagged
 
 
+def close_stale_pending(at: datetime | None = None) -> list[int]:
+    """把超過 ``pending_timeout_min`` 仍未處理的待處理事件結案為拒絕（例如車子已倒車離開），回傳事件 id。
+
+    與警衛手動處理同樣以 ``decision='PENDING'`` 做條件式更新，避免覆蓋剛被人工處理的事件。
+    """
+    minutes = int(settings_store.get("pending_timeout_min"))
+    if minutes <= 0:
+        return []
+    at = at or now()
+    cutoff = at - timedelta(minutes=minutes)
+    note = f"逾時 {minutes} 分鐘未處理，自動結案"
+    db = SessionLocal()
+    closed: list[int] = []
+    payload: list[dict] = []
+    try:
+        ids = db.scalars(
+            select(AccessEvent.id).where(
+                AccessEvent.decision == EventDecision.PENDING.value, AccessEvent.occurred_at < cutoff
+            )
+        ).all()
+        for eid in ids:
+            res = db.execute(
+                update(AccessEvent)
+                .where(AccessEvent.id == eid, AccessEvent.decision == EventDecision.PENDING.value)
+                .values(decision=EventDecision.DENY.value, decided_at=at, note=note)
+            )
+            if res.rowcount == 1:
+                closed.append(eid)
+        if closed:
+            db.execute(
+                update(Alert)
+                .where(Alert.event_id.in_(closed), Alert.acknowledged.is_(False))
+                .values(acknowledged=True, acknowledged_at=at)
+            )
+        db.commit()
+        payload = [event_dict(db.get(AccessEvent, eid)) for eid in closed]
+    finally:
+        db.close()
+    for data in payload:
+        bus.publish("access_event_updated", data)
+    if closed:
+        bus.publish("alerts_changed", {})
+        log.info("待處理事件逾時自動結案：%s", closed)
+    return closed
+
+
 def cleanup_snapshots(today: date | None = None) -> int:
     days = int(settings_store.get("snapshot_retention_days"))
     today = today or date.today()
@@ -70,6 +116,7 @@ async def run_scheduler(stop: asyncio.Event) -> None:
     while not stop.is_set():
         try:
             await asyncio.to_thread(check_overstay)
+            await asyncio.to_thread(close_stale_pending)
             today = date.today()
             if last_cleanup != today:
                 await asyncio.to_thread(cleanup_snapshots, today)
