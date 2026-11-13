@@ -40,12 +40,22 @@ def create_app(start_background: bool | None = None) -> FastAPI:
             mgr = get_lane_manager()
             await asyncio.to_thread(mgr.start_all)
             tasks.append(asyncio.create_task(run_scheduler(stop)))
-            # 背景預先載入辨識模型（首次會下載）
+            # 僅當至少有一個車道設定攝影機來源時，才在背景預先載入辨識模型（避免雲端無攝影機啟動時耗時下載）
+            from .db import SessionLocal
+            from .models import Lane
             from .vision.recognizer import get_recognizer
 
-            rec = get_recognizer()
-            if hasattr(rec, "warmup"):
-                asyncio.get_running_loop().run_in_executor(None, rec.warmup)
+            def _has_camera_source() -> bool:
+                db = SessionLocal()
+                try:
+                    return db.query(Lane).filter(Lane.enabled.is_(True), Lane.source_url != "").first() is not None
+                finally:
+                    db.close()
+
+            if await asyncio.to_thread(_has_camera_source):
+                rec = get_recognizer()
+                if hasattr(rec, "warmup"):
+                    asyncio.get_running_loop().run_in_executor(None, rec.warmup)
         yield
         stop.set()
         for t in tasks:

@@ -5,6 +5,7 @@ import secrets
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -14,6 +15,12 @@ class AppConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="GATE_", env_file=PROJECT_ROOT / ".env", extra="ignore")
 
     data_dir: Path = PROJECT_ROOT / "data"
+    snapshot_dir_override: Path | None = Field(
+        default=None, validation_alias=AliasChoices("GATE_SNAPSHOT_DIR", "SNAPSHOT_DIR")
+    )
+    database_url: str | None = Field(
+        default=None, validation_alias=AliasChoices("GATE_DATABASE_URL", "DATABASE_URL")
+    )
     host: str = "127.0.0.1"
     port: int = 8000
     # 用於簽署 session cookie；未設定時自動產生並存在 data/secret.key
@@ -35,7 +42,7 @@ class AppConfig(BaseSettings):
 
     @property
     def snapshot_dir(self) -> Path:
-        return self.data_dir / "snapshots"
+        return self.snapshot_dir_override or (self.data_dir / "snapshots")
 
     def ensure_dirs(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)

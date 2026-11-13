@@ -65,9 +65,9 @@ def find_visitor(db: Session, plate: str, at: datetime, direction: str) -> Visit
     base = select(Visitor).where(Visitor.plate == plate, Visitor.status != VisitorStatus.CANCELLED.value)
     in_window = (Visitor.authorized_from <= at) & (Visitor.authorized_until >= at)
     if direction == LaneDirection.OUT.value:
-        # 離場：在場中的訪客即使已逾時也要能出去
+        # 離場：在場中的訪客即使已逾時也要能出去（非 NULL 的 entered_at 排前面，相容 SQLite 與 MySQL）
         cond = or_(Visitor.status.in_([VisitorStatus.ENTERED.value, VisitorStatus.OVERSTAY.value]), in_window)
-        order = (Visitor.entered_at.desc().nulls_last(), Visitor.authorized_from.desc())
+        order = (Visitor.entered_at.is_(None), Visitor.entered_at.desc(), Visitor.authorized_from.desc())
     else:
         cond = in_window
         order = (Visitor.authorized_from.desc(),)
