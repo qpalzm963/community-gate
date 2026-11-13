@@ -65,3 +65,27 @@ def test_voter_low_confidence_rejected():
     c = v.add("XYZ999", 0.99, ts=1.4)  # 平均 (0.7+0.8+0.99)/3 = 0.83 < 0.85
     assert c is None
     assert v.add("XYZ999", 0.99, ts=1.6) is not None  # 平均 0.87 >= 0.85
+
+
+def test_voter_merges_one_char_misreads():
+    """同一車牌被交錯讀成相差一字（ABC1234 / ABC1Z34）時仍要在 min_hits 內確認，
+    否則票數被拆散、車輛停在閘前等不到辨識；確認結果取多數讀法。"""
+    v = PlateVoter(VoteParams(min_hits=3, window_sec=2.0, min_confidence=0.8, dedup_sec=30.0))
+    assert v.add("ABC1234", 0.9, ts=1.0) is None
+    assert v.add("ABC1Z34", 0.95, ts=1.2) is None
+    c = v.add("ABC1234", 0.88, ts=1.4)
+    assert c is not None
+    assert c.plate == "ABC1234"
+    assert c.hits == 3
+    assert c.best.plate == "ABC1234" and c.best.confidence == 0.9
+    # 誤讀版本已被併入，不會在去重期間被當成另一台車再確認
+    assert v.add("ABC1Z34", 0.99, ts=1.6) is None
+    assert v.add("ABC1Z34", 0.99, ts=1.8) is None
+
+
+def test_voter_does_not_merge_distant_plates():
+    v = PlateVoter(VoteParams(min_hits=3, window_sec=2.0, min_confidence=0.8, dedup_sec=30.0))
+    assert v.add("ABC1234", 0.9, ts=1.0) is None
+    assert v.add("XYZ5678", 0.9, ts=1.1) is None
+    assert v.add("ABC1234", 0.9, ts=1.2) is None
+    assert v.add("XYZ5678", 0.9, ts=1.3) is None
