@@ -40,8 +40,9 @@ export function useLanePush(
   let fpsTimer: ReturnType<typeof setInterval> | null = null
   let recClearTimer: ReturnType<typeof setTimeout> | null = null
   let frameCount = 0
-  /** 上一張還在編碼中 */
-  let encoding = false
+  /** 編碼中的張數：允許 2 張並行，手機編碼一張超過擷取間隔時才不會每隔一拍就被跳過 */
+  let inFlight = 0
+  const MAX_IN_FLIGHT = 2
   /** 送出緩衝超過約兩張影格就跳過，避免網路慢時延遲越積越長 */
   const MAX_BUFFERED_BYTES = 200 * 1024
 
@@ -96,7 +97,7 @@ export function useLanePush(
   function captureFrame() {
     const sock = ws
     if (!isConnected.value || !sock || sock.readyState !== WebSocket.OPEN) return
-    if (encoding || sock.bufferedAmount > MAX_BUFFERED_BYTES) return
+    if (inFlight >= MAX_IN_FLIGHT || sock.bufferedAmount > MAX_BUFFERED_BYTES) return
     const v = videoEl.value
     const c = canvasEl.value
     if (!v || !c || v.videoWidth === 0) return
@@ -110,10 +111,10 @@ export function useLanePush(
     const ctx = c.getContext('2d')
     if (!ctx) return
     ctx.drawImage(v, 0, 0, w, h)
-    encoding = true
+    inFlight++
     c.toBlob(
       (blob) => {
-        encoding = false
+        inFlight--
         if (blob && ws && ws.readyState === WebSocket.OPEN) {
           ws.send(blob)
           frameCount++
