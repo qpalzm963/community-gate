@@ -23,22 +23,43 @@ from ..models import Snapshot
 log = logging.getLogger(__name__)
 
 
-def save_jpeg(
-    img: np.ndarray | None, prefix: str, at: datetime | None = None, quality: int = 85, db: Session | None = None
-) -> str:
-    """編碼並存入資料庫，回傳截圖鍵。
+FRAME_MAX_WIDTH = 1280
+FRAME_WEBP_QUALITY = 75
 
-    傳入 db 時只加進該 session、由呼叫端 commit：事件寫入失敗時截圖跟著回滾，不會留下孤兒資料。
+
+def save_frame(img: np.ndarray | None, prefix: str, at: datetime | None = None, db: Session | None = None) -> str:
+    """存整張現場畫面：WebP 75、寬度上限 1280px。
+
+    同尺寸下約只有 JPEG 85 的 1/4，畫面只用來看現場狀況，車牌判讀另有特寫。
     """
     if img is None or getattr(img, "size", 0) == 0:
         return ""
-    at = at or datetime.now()
-    ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-    if not ok:
+    h, w = img.shape[:2]
+    if w > FRAME_MAX_WIDTH:
+        img = cv2.resize(img, (FRAME_MAX_WIDTH, round(h * FRAME_MAX_WIDTH / w)), interpolation=cv2.INTER_AREA)
+    ok, buf = cv2.imencode(".webp", img, [int(cv2.IMWRITE_WEBP_QUALITY), FRAME_WEBP_QUALITY])
+    return _store(buf.tobytes(), prefix, "webp", at, db) if ok else ""
+
+
+def save_jpeg(
+    img: np.ndarray | None, prefix: str, at: datetime | None = None, quality: int = 85, db: Session | None = None
+) -> str:
+    """存 JPEG（車牌特寫用：圖很小，保留畫質供判讀）。"""
+    if img is None or getattr(img, "size", 0) == 0:
         return ""
+    ok, buf = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+    return _store(buf.tobytes(), prefix, "jpg", at, db) if ok else ""
+
+
+def _store(data: bytes, prefix: str, ext: str, at: datetime | None, db: Session | None) -> str:
+    """存入資料庫，回傳截圖鍵。
+
+    傳入 db 時只加進該 session、由呼叫端 commit：事件寫入失敗時截圖跟著回滾，不會留下孤兒資料。
+    """
+    at = at or datetime.now()
     # now() 會把微秒歸零，同一秒內多筆事件靠隨機尾碼避免鍵值相撞
-    rel = f"{at.strftime('%Y/%m/%d')}/{at.strftime('%H%M%S')}_{prefix}_{secrets.token_hex(4)}.jpg"
-    snap = Snapshot(path=rel, data=buf.tobytes(), created_at=at)
+    rel = f"{at.strftime('%Y/%m/%d')}/{at.strftime('%H%M%S')}_{prefix}_{secrets.token_hex(4)}.{ext}"
+    snap = Snapshot(path=rel, data=data, created_at=at)
     if db is not None:
         db.add(snap)
         return rel
