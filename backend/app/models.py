@@ -4,7 +4,8 @@ from __future__ import annotations
 import enum
 from datetime import date, datetime
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, LargeBinary, String, Text
+from sqlalchemy.dialects.mysql import MEDIUMBLOB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -207,3 +208,13 @@ class Setting(Base):
     __tablename__ = "settings"
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
+
+
+class Snapshot(Base):
+    """事件截圖本體。存在資料庫而非容器磁碟，雲端重新部署換容器後截圖才不會消失。"""
+
+    __tablename__ = "snapshots"
+    path: Mapped[str] = mapped_column(String(255), primary_key=True)
+    # MySQL 的 BLOB 上限只有 64KB，整張截圖會超過，改用 MEDIUMBLOB（16MB）
+    data: Mapped[bytes] = mapped_column(LargeBinary().with_variant(MEDIUMBLOB(), "mysql"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now, index=True)

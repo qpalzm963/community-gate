@@ -5,7 +5,7 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -263,7 +263,7 @@ def close_presence(session_id: int, _: User = Depends(current_user), db: Session
 
 @router.get("/snapshots/{rel:path}")
 def get_snapshot(rel: str, _: User = Depends(current_user)):
-    p = snapshots.resolve(rel)
-    if p is None:
+    data = snapshots.resolve(rel)
+    if data is None:
         raise HTTPException(404, "截圖不存在或已過保存期限")
-    return FileResponse(p, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=86400"})
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=86400"})
