@@ -24,7 +24,6 @@ from ..models import (
     now,
 )
 from ..services.events import bus
-from ..services import snapshots
 from ..services.snapshots import save_jpeg
 from ..vision.plate import format_plate
 from .engine import Decision, decide, lane_vehicle_type
@@ -176,14 +175,13 @@ def handle_detection(
     """處理一筆已確認的車牌辨識結果，回傳事件資料。"""
     at = at or now()
     db = SessionLocal()
-    saved: tuple[str, ...] = ()
     committed = False
     try:
         lane = db.get(Lane, lane_id)
         if lane is None:
             raise AccessError(f"車道 {lane_id} 不存在")
         d: Decision = decide(db, plate, lane, at)
-        saved = (save_jpeg(frame, f"L{lane.id}_full", at), save_jpeg(crop, f"L{lane.id}_plate", at))
+        saved = (save_jpeg(frame, f"L{lane.id}_full", at, db=db), save_jpeg(crop, f"L{lane.id}_plate", at, db=db))
         ev = AccessEvent(
             lane_id=lane.id,
             direction=lane.direction,
@@ -223,11 +221,9 @@ def handle_detection(
         data = event_dict(ev)
         alert_data = [alert_dict(a) for a in alerts]
     except Exception:
-        # 事件沒寫進資料庫就不該留下截圖，否則會變成找不到對應紀錄的孤兒檔；
-        # 已 commit 的事件則仍指向這些截圖，不能刪
+        # 截圖與事件同一個交易：事件沒寫進資料庫時截圖一併回滾，不會留下孤兒資料
         if not committed:
             db.rollback()
-            snapshots.remove(*saved)
         raise
     finally:
         db.close()
@@ -324,7 +320,7 @@ def manual_open(
             note=note or "手動開閘",
             occurred_at=at,
             decided_at=at,
-            snapshot_path=save_jpeg(frame, f"L{lane.id}_manual", at),
+            snapshot_path=save_jpeg(frame, f"L{lane.id}_manual", at, db=db),
         )
         db.add(ev)
         db.flush()

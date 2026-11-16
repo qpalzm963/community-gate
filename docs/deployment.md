@@ -4,8 +4,8 @@
 
 | 部署方式 | 資料庫 | 截圖儲存 | 攝影機來源 | 適用情境 |
 |---|---|---|---|---|
-| **警衛室單機版**（`uv run gate serve`） | 本機 SQLite（`data/app.db`） | 本機 `data/snapshots/` | RTSP / USB / 第三方 IP Cam / 手機掃碼推流 | 社區現場離線運作、連接實體柵欄繼電器 |
-| **雲端容器版**（Docker / Cloud Run / VPS） | 外部 MySQL 8.4（SSL） | 外部掛載磁碟區 / 儲存桶 | 手機掃碼推流（HTTPS）、上傳圖片、模擬辨識 | 遠端測試、手機/電腦展示、無實體柵欄環境 |
+| **警衛室單機版**（`uv run gate serve`） | 本機 SQLite（`data/app.db`） | 資料庫（`snapshots` 表） | RTSP / USB / 第三方 IP Cam / 手機掃碼推流 | 社區現場離線運作、連接實體柵欄繼電器 |
+| **雲端容器版**（Docker / Cloud Run / VPS） | 外部 MySQL 8.4（SSL） | 資料庫（`snapshots` 表），重新部署不會遺失 | 手機掃碼推流（HTTPS）、上傳圖片、模擬辨識 | 遠端測試、手機/電腦展示、無實體柵欄環境 |
 
 ---
 
@@ -17,7 +17,7 @@
 |---|---|---|---|
 | `DATABASE_URL`（或 `GATE_DATABASE_URL`） | 雲端建議 | 本機 `sqlite:///data/app.db` | 資料庫連線字串。支援 `mysql://user:pass@host:3306/db?sslaccept=accept_invalid_certs`，[db.py](../backend/app/db.py) 會自動轉成 `mysql+pymysql://` 並啟用 TLS |
 | `GATE_DATA_DIR` | 否 | `./data`（Docker 內 `/app/data`） | 本機 SQLite、金鑰、SSL 自簽憑證等資料目錄 |
-| `GATE_SNAPSHOT_DIR`（或 `SNAPSHOT_DIR`） | 雲端建議 | `<GATE_DATA_DIR>/snapshots` | 截圖儲存路徑。可指定為外部掛載之磁碟目錄 |
+| `GATE_SNAPSHOT_DIR`（或 `SNAPSHOT_DIR`） | 雲端建議 | `<GATE_DATA_DIR>/snapshots` | 舊版截圖目錄。新截圖一律存進資料庫，此目錄只用來讀取與清理升級前存在磁碟上的截圖 |
 | `GATE_ADMIN_USERNAME` | 容器建議 | 無 | 啟動時若此帳號不存在，自動建立此管理員帳號 |
 | `GATE_ADMIN_PASSWORD` | 容器建議 | 無 | 上述自動建立帳號的密碼（至少 6 碼） |
 | `GATE_ADMIN_DISPLAY_NAME` | 否 | `管理員` | 自動建立帳號的顯示名稱 |

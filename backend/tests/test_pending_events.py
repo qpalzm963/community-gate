@@ -209,3 +209,46 @@ def test_error_after_commit_keeps_snapshots(auth_client, monkeypatch):
         assert ev.snapshot_path == saved[0]
     finally:
         db.close()
+
+
+def test_snapshot_survives_snapshot_dir_wipe(auth_client):
+    """雲端每次重新部署都會換新容器、磁碟清空，但事件紀錄留在資料庫；截圖必須跟著事件存在資料庫，否則後台全是 404。"""
+    import shutil
+
+    from app.config import get_config
+
+    client, _ = auth_client
+    lane_id = _in_lane_id(client)
+    img = np.zeros((40, 60, 3), dtype=np.uint8)
+    ev = service.handle_detection("SNP1234", 0.9, lane_id, frame=img, crop=img)
+
+    shutil.rmtree(get_config().snapshot_dir, ignore_errors=True)  # 模擬換新容器
+
+    res = client.get(ev["snapshot_url"])
+    assert res.status_code == 200
+    assert res.headers["content-type"] == "image/jpeg"
+    assert client.get(ev["plate_crop_url"]).status_code == 200
+
+
+def test_same_second_snapshots_do_not_collide(auth_client):
+    """now() 會去掉微秒，同一車道同一秒內的兩筆事件不能拿到同一個截圖鍵，否則第二筆事件寫入失敗。"""
+    client, _ = auth_client
+    lane_id = _in_lane_id(client)
+    img = np.zeros((40, 60, 3), dtype=np.uint8)
+    at = datetime(2026, 11, 16, 9, 44, 6)
+    a = service.handle_detection("SAM1234", 0.9, lane_id, frame=img, crop=img, at=at)
+    b = service.handle_detection("SAM5678", 0.9, lane_id, frame=img, crop=img, at=at)
+    assert a["snapshot_url"] != b["snapshot_url"]
+
+
+def test_legacy_disk_snapshot_still_readable(auth_client):
+    """單機版升級前存在磁碟上的截圖，升級後仍要讀得到，不能因改存資料庫就變破圖。"""
+    from app.config import get_config
+
+    client, _ = auth_client
+    rel = "2026/11/01/120000_L1_full_000000.jpg"
+    p = get_config().snapshot_dir / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_bytes(b"\xff\xd8legacy")
+    assert resolve(rel) == b"\xff\xd8legacy"
+    assert client.get(f"/api/snapshots/{rel}").status_code == 200
