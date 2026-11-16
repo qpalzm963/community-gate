@@ -100,10 +100,11 @@
         </el-table-column>
         <el-table-column prop="operator_name" label="操作人" width="80" />
         <el-table-column prop="note" label="備註" min-width="96" show-overflow-tooltip />
-        <el-table-column label="截圖" width="68" fixed="right">
+        <el-table-column label="操作" width="104" fixed="right">
           <template #default="{ row }">
+            <el-button v-if="row.decision === 'PENDING'" link type="warning" size="small" @click="reopenPending(row)">處理</el-button>
             <el-button v-if="row.snapshot_url" link type="primary" size="small" @click="preview = row">檢視</el-button>
-            <span v-else class="text-muted">—</span>
+            <span v-else-if="row.decision !== 'PENDING'" class="text-muted">—</span>
           </template>
         </el-table-column>
       </el-table>
@@ -135,7 +136,7 @@
 
 <script setup lang="ts">
 import { ChevronDown, Download } from 'lucide-vue-next'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   api,
   CATEGORY_LABEL,
@@ -148,6 +149,7 @@ import {
 } from '../api'
 import DecisionMark from '../components/DecisionMark.vue'
 import EmptyState from '../components/EmptyState.vue'
+import { appState, reopenPending } from '../store'
 
 const lanes = ref<Lane[]>([])
 const items = ref<AccessEvent[]>([])
@@ -221,6 +223,13 @@ function doExport(format: string) {
   const qs = queryString(false)
   window.open(`/api/events/export?format=${format}${qs ? '&' + qs : ''}`, '_blank')
 }
+
+watch(
+  () => appState.pendingEvents.length,
+  (next, prev) => {
+    if (next < prev) void load()
+  },
+)
 
 onMounted(async () => {
   lanes.value = await api.get<Lane[]>('/api/lanes')

@@ -139,6 +139,12 @@ class DecisionIn(BaseModel):
     action: Literal["allow", "deny"]
     visitor_id: int | None = None
     note: str = ""
+    plate: str = ""
+
+    @field_validator("plate")
+    @classmethod
+    def _p(cls, v: str) -> str:
+        return _plate(v, False)
 
 
 class ManualOpenIn(BaseModel):

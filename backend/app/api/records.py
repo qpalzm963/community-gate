@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from ..access.engine import decide
 from ..access.service import AccessError, alert_dict, event_dict, manual_decision
 from ..auth import current_user
 from ..db import get_db
@@ -138,10 +139,36 @@ def get_event(event_id: int, _: User = Depends(current_user), db: Session = Depe
     return event_dict(ev)
 
 
+@router.get("/events/{event_id}/recheck")
+def recheck_event_plate(
+    event_id: int,
+    plate: str = Query(..., min_length=1),
+    _: User = Depends(current_user),
+    db: Session = Depends(get_db),
+):
+    ev = db.get(AccessEvent, event_id)
+    if ev is None:
+        raise HTTPException(404, "事件不存在")
+    cleaned = clean(plate)
+    if not 2 <= len(cleaned) <= 10:
+        raise HTTPException(400, "車牌長度不正確")
+    d = decide(db, cleaned, ev.lane, ev.occurred_at)
+    return {
+        "plate": cleaned,
+        "plate_display": format_plate(cleaned),
+        "category": d.category.value,
+        "decision": d.decision.value,
+        "household_unit": d.household_unit,
+        "message": d.message,
+    }
+
+
 @router.post("/events/{event_id}/decision")
 async def decide_event(event_id: int, body: DecisionIn, user: User = Depends(current_user)):
     try:
-        return await run_in_threadpool(manual_decision, event_id, body.action, user.id, body.visitor_id, body.note)
+        return await run_in_threadpool(
+            manual_decision, event_id, body.action, user.id, body.visitor_id, body.note, body.plate
+        )
     except AccessError as e:
         raise HTTPException(400, str(e)) from e
 

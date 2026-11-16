@@ -25,7 +25,7 @@ from ..models import (
 )
 from ..services.events import bus
 from ..services.snapshots import save_frame, save_jpeg
-from ..vision.plate import format_plate
+from ..vision.plate import clean, format_plate
 from .engine import Decision, decide, lane_vehicle_type
 
 log = logging.getLogger(__name__)
@@ -242,10 +242,14 @@ def manual_decision(
     operator_id: int | None,
     visitor_id: int | None = None,
     note: str = "",
+    plate: str = "",
 ) -> dict:
-    """警衛對待處理事件做決定：allow（放行一次 / 已登記訪客）或 deny。"""
+    """警衛對待處理事件做決定：allow（放行一次 / 已登記訪客）或 deny；可同時修正誤辨識的車牌。"""
     if action not in ("allow", "deny"):
         raise AccessError("action 必須為 allow 或 deny")
+    new_plate = clean(plate)
+    if new_plate and not 2 <= len(new_plate) <= 10:
+        raise AccessError("車牌長度不正確")
     db = SessionLocal()
     try:
         if db.get(AccessEvent, event_id) is None:
@@ -268,17 +272,40 @@ def manual_decision(
             db.rollback()
             raise AccessError("此事件已處理")
         ev = db.get(AccessEvent, event_id, populate_existing=True)
+        corrected_from = ""
+        if new_plate and new_plate != ev.plate:
+            corrected_from = format_plate(ev.plate) or ev.plate
+            ev.plate = new_plate
+
         if action == "deny":
-            ev.note = note or "警衛拒絕"
+            base_note = note or ("警衛修正車牌並拒絕" if corrected_from else "警衛拒絕")
         else:
-            ev.note = note or "警衛放行一次"
+            matched_resident = False
+            if corrected_from and visitor is None:
+                recheck = decide(db, ev.plate, ev.lane, ev.occurred_at)
+                if recheck.category == EventCategory.RESIDENT and recheck.vehicle is not None:
+                    matched_resident = True
+                    ev.category = EventCategory.RESIDENT.value
+                    ev.ref_vehicle_id = recheck.vehicle.id
+                    ev.household_unit = recheck.household_unit
+                    ev.vehicle_type = recheck.vehicle_type
+                elif recheck.category == EventCategory.VISITOR and recheck.visitor is not None:
+                    visitor = recheck.visitor
+
             if visitor is not None:
                 ev.category = EventCategory.VISITOR.value
                 ev.ref_visitor_id = visitor.id
                 ev.household_unit = visitor.household.unit_no if visitor.household else ""
                 ev.vehicle_type = visitor.vehicle_type
-                ev.note = note or f"現場登記訪客 {visitor.name}"
+                default_note = f"修正車牌命中訪客 {visitor.name}" if corrected_from and visitor_id is None else f"現場登記訪客 {visitor.name}"
+            elif matched_resident:
+                default_note = f"修正車牌命中住戶 {ev.household_unit}".strip()
+            else:
+                default_note = "警衛修正車牌並放行" if corrected_from else "警衛放行一次"
+            base_note = note or default_note
             _apply_allow_effects(db, ev, visitor)
+
+        ev.note = f"{base_note}（原辨識 {corrected_from}）" if corrected_from else base_note
         for a in db.scalars(select(Alert).where(Alert.event_id == ev.id, Alert.acknowledged.is_(False))):
             a.acknowledged = True
             a.acknowledged_by = operator_id

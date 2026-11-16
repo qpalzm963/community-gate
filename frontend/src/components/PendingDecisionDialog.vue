@@ -25,7 +25,33 @@
           </div>
           <div class="facts">
             <div class="plate-block">
-              <div class="plate-badge lg">{{ currentEvent.plate_display || currentEvent.plate }}</div>
+              <div v-if="!editingPlate" class="plate-row">
+                <div class="plate-badge lg">{{ recheckResult?.plate_display || currentEvent.plate_display || currentEvent.plate }}</div>
+                <el-button text size="small" class="plate-edit-btn" @click="startEditPlate">
+                  <el-icon><Pencil /></el-icon>
+                  <span>修正車牌</span>
+                </el-button>
+              </div>
+              <div v-else class="plate-edit-row">
+                <el-input
+                  v-model="plateInput"
+                  size="default"
+                  placeholder="輸入正確車牌"
+                  class="plate-input"
+                  @keyup.enter="applyPlateEdit"
+                />
+                <el-button type="primary" size="default" :loading="rechecking" @click="applyPlateEdit">比對</el-button>
+                <el-button size="default" @click="resetPlateEdit">還原</el-button>
+              </div>
+              <div v-if="isPlateCorrected && !editingPlate" class="plate-recheck-hint">
+                <el-tag
+                  size="small"
+                  :type="recheckResult?.category === 'BLACKLIST' ? 'danger' : recheckResult?.category === 'RESIDENT' || recheckResult?.category === 'VISITOR' ? 'success' : 'info'"
+                >
+                  {{ recheckHintText }}
+                </el-tag>
+                <span class="text-muted orig-plate">原辨識 {{ currentEvent.plate_display || currentEvent.plate }}</span>
+              </div>
               <div v-if="!currentEvent.snapshot_url" class="lane-line">{{ laneLabel }}</div>
             </div>
             <img v-if="currentEvent.plate_crop_url" :src="currentEvent.plate_crop_url" class="crop-img" alt="車牌裁切" />
@@ -127,7 +153,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { TriangleAlert } from 'lucide-vue-next'
+import { TriangleAlert, Pencil } from 'lucide-vue-next'
 import {
   api,
   DIRECTION_LABEL,
@@ -137,14 +163,26 @@ import {
   type Household,
   type Visitor,
 } from '../api'
-import { appState } from '../store'
+import { appState, dismissPending } from '../store'
 
-const dismissedIds = ref(new Set<number>())
+interface RecheckResult {
+  plate: string
+  plate_display: string
+  category: string
+  decision: string
+  household_unit: string
+  message: string
+}
+
 const mode = ref<'once' | 'visitor' | 'deny'>('once')
 const note = ref('')
 const hours = ref(4)
 const submitting = ref(false)
 const households = ref<Household[]>([])
+const editingPlate = ref(false)
+const plateInput = ref('')
+const rechecking = ref(false)
+const recheckResult = ref<RecheckResult | null>(null)
 
 const visitorForm = reactive({
   household_id: undefined as number | undefined,
@@ -154,7 +192,14 @@ const visitorForm = reactive({
   purpose: '',
 })
 
-const currentEvent = computed(() => appState.pendingEvents.find((e) => !dismissedIds.value.has(e.id)) ?? null)
+const currentEvent = computed(() => {
+  const visible = appState.pendingEvents.filter((e) => !appState.dismissedPendingIds.includes(e.id))
+  if (appState.activePendingId != null) {
+    const target = visible.find((e) => e.id === appState.activePendingId)
+    if (target) return target
+  }
+  return visible[0] ?? null
+})
 
 const laneLabel = computed(() => {
   const ev = currentEvent.value
@@ -162,10 +207,27 @@ const laneLabel = computed(() => {
   return `${ev.lane_name || '車道'} · ${DIRECTION_LABEL[ev.direction] || ev.direction}`
 })
 
+const isPlateCorrected = computed(() => {
+  const ev = currentEvent.value
+  return !!(ev && recheckResult.value && recheckResult.value.plate !== ev.plate)
+})
+
+const recheckHintText = computed(() => {
+  const r = recheckResult.value
+  if (!r) return ''
+  if (r.category === 'RESIDENT') return `命中住戶 ${r.household_unit || ''}`.trim()
+  if (r.category === 'VISITOR') return r.message || '命中已登記訪客'
+  if (r.category === 'BLACKLIST') return r.message || '黑名單車輛'
+  return '未登記車輛'
+})
+
 watch(currentEvent, async (ev) => {
   if (!ev) return
   mode.value = 'once'
   note.value = ''
+  editingPlate.value = false
+  plateInput.value = ev.plate_display || ev.plate
+  recheckResult.value = null
   visitorForm.name = ''
   visitorForm.phone = ''
   visitorForm.purpose = ''
@@ -179,15 +241,60 @@ watch(currentEvent, async (ev) => {
   }
 })
 
+function startEditPlate() {
+  const ev = currentEvent.value
+  if (!ev) return
+  plateInput.value = recheckResult.value?.plate_display || ev.plate_display || ev.plate
+  editingPlate.value = true
+}
+
+async function applyPlateEdit() {
+  const ev = currentEvent.value
+  if (!ev) return
+  const raw = plateInput.value.trim()
+  if (!raw) {
+    ElMessage.warning('請輸入車牌')
+    return
+  }
+  rechecking.value = true
+  try {
+    const res = await api.get<RecheckResult>(`/api/events/${ev.id}/recheck?plate=${encodeURIComponent(raw)}`)
+    recheckResult.value = res.plate === ev.plate ? null : res
+    editingPlate.value = false
+    if (res.category === 'BLACKLIST') {
+      mode.value = 'deny'
+    }
+  } catch (err) {
+    ElMessage.error((err as Error).message)
+  } finally {
+    rechecking.value = false
+  }
+}
+
+function resetPlateEdit() {
+  const ev = currentEvent.value
+  editingPlate.value = false
+  recheckResult.value = null
+  if (ev) {
+    plateInput.value = ev.plate_display || ev.plate
+  }
+}
+
 function dismiss() {
   if (currentEvent.value) {
-    dismissedIds.value.add(currentEvent.value.id)
+    dismissPending(currentEvent.value.id)
   }
 }
 
 async function submit() {
   const ev = currentEvent.value
   if (!ev) return
+  if (editingPlate.value) {
+    await applyPlateEdit()
+    if (editingPlate.value) return
+  }
+  const correctedPlate = recheckResult.value && recheckResult.value.plate !== ev.plate ? recheckResult.value.plate : ''
+  const effectivePlate = correctedPlate || ev.plate
   submitting.value = true
   try {
     if (mode.value === 'visitor') {
@@ -201,7 +308,7 @@ async function submit() {
         household_id: visitorForm.household_id,
         name: visitorForm.name.trim(),
         phone: visitorForm.phone.trim(),
-        plate: ev.plate,
+        plate: effectivePlate,
         vehicle_type: visitorForm.vehicle_type,
         purpose: visitorForm.purpose.trim(),
         authorized_from: toLocalIso(start),
@@ -212,16 +319,22 @@ async function submit() {
         action: 'allow',
         visitor_id: vis.id,
         note: note.value.trim(),
+        plate: correctedPlate,
       })
       ElMessage.success(`已登記訪客 ${vis.name} 並開閘`)
     } else {
       await api.post(`/api/events/${ev.id}/decision`, {
         action: mode.value === 'deny' ? 'deny' : 'allow',
         note: note.value.trim(),
+        plate: correctedPlate,
       })
       ElMessage.success(mode.value === 'deny' ? '已拒絕進入' : '已放行並開閘')
     }
     appState.pendingEvents = appState.pendingEvents.filter((p) => p.id !== ev.id)
+    appState.dismissedPendingIds = appState.dismissedPendingIds.filter((id) => id !== ev.id)
+    if (appState.activePendingId === ev.id) {
+      appState.activePendingId = null
+    }
   } catch (err) {
     ElMessage.error((err as Error).message)
   } finally {
@@ -291,6 +404,41 @@ async function submit() {
   display: flex;
   flex-direction: column;
   gap: var(--cg-space-2);
+}
+.plate-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cg-space-2);
+  flex-wrap: wrap;
+}
+.plate-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--cg-text-2);
+}
+.plate-edit-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cg-space-2);
+}
+.plate-input {
+  width: 150px;
+}
+.plate-input :deep(input) {
+  font-family: var(--cg-font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.plate-recheck-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--cg-space-2);
+  flex-wrap: wrap;
+}
+.orig-plate {
+  font-size: var(--cg-text-xs);
 }
 .lane-line {
   font-size: var(--cg-text-sm);

@@ -47,9 +47,15 @@
           <span class="clock-date">{{ clockDate }}</span>
         </div>
         <div class="topbar-right">
-          <span v-if="appState.pendingEvents.length" class="status-chip warn" role="status">
+          <button
+            v-if="appState.pendingEvents.length"
+            type="button"
+            class="status-chip warn status-chip-btn"
+            title="點擊開啟待處理事件"
+            @click="reopenPending()"
+          >
             <el-icon><BellRing /></el-icon>待處理 {{ appState.pendingEvents.length }}
-          </span>
+          </button>
           <span class="status-chip" :class="wsState.connected ? 'ok' : 'err'" role="status">
             <span class="status-dot" />{{ wsState.connected ? '即時連線正常' : '連線中斷，重新連線中' }}
           </span>
@@ -114,7 +120,7 @@ import {
   Users,
 } from 'lucide-vue-next'
 import { api, setUnauthorizedHandler, type User } from './api'
-import { appState, initWsListeners, loadPublicInfo, refreshPendingAndAlerts } from './store'
+import { appState, initWsListeners, loadPublicInfo, refreshPendingAndAlerts, reopenPending } from './store'
 import { wsHub, wsState } from './ws'
 import { useTheme } from './composables/useTheme'
 import BrandCrest from './components/BrandCrest.vue'
@@ -485,6 +491,15 @@ async function savePassword() {
 }
 .status-chip.err {
   color: var(--cg-danger-text);
+}
+.status-chip-btn {
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+.status-chip-btn:hover {
+  opacity: 0.8;
 }
 .status-chip.warn {
   padding: 0 14px;

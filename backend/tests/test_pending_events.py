@@ -280,3 +280,52 @@ def test_legacy_disk_snapshot_still_readable(auth_client):
     p.write_bytes(b"\xff\xd8legacy")
     assert resolve(rel) == b"\xff\xd8legacy"
     assert client.get(f"/api/snapshots/{rel}").status_code == 200
+
+
+def test_recheck_and_correct_plate_matches_resident(auth_client):
+    """誤辨識的車牌經警衛修正後，能重新比對住戶名單、更新事件與在場紀錄，並保留原辨識備註。"""
+    client, _ = auth_client
+    lane_id = _in_lane_id(client)
+    hh = client.post("/api/households", json={"unit_no": "A101", "owner_name": "陳先生"}).json()
+    client.post("/api/vehicles", json={"household_id": hh["id"], "plate": "BFG-9000", "vehicle_type": "CAR"})
+
+    ev = service.handle_detection("AFG9000", 0.88, lane_id)
+    assert ev["decision"] == "PENDING"
+    assert ev["category"] == "UNKNOWN"
+
+    recheck = client.get(f"/api/events/{ev['id']}/recheck", params={"plate": "bfg-9000"})
+    assert recheck.status_code == 200
+    assert recheck.json()["plate"] == "BFG9000"
+    assert recheck.json()["category"] == "RESIDENT"
+    assert recheck.json()["household_unit"] == "A101"
+
+    decided = client.post(
+        f"/api/events/{ev['id']}/decision",
+        json={"action": "allow", "plate": "BFG-9000"},
+    )
+    assert decided.status_code == 200
+    body = decided.json()
+    assert body["plate"] == "BFG9000"
+    assert body["category"] == "RESIDENT"
+    assert body["household_unit"] == "A101"
+    assert "原辨識 AFG-9000" in body["note"]
+
+    inside = client.get("/api/presence").json()
+    assert any(p["plate"] == "BFG9000" for p in inside)
+    assert not any(p["plate"] == "AFG9000" for p in inside)
+
+
+def test_correct_plate_on_deny_records_original_plate(auth_client):
+    """拒絕進入時若同時修正車牌，應更新車牌並在備註留下原辨識結果。"""
+    client, _ = auth_client
+    lane_id = _in_lane_id(client)
+    ev = service.handle_detection("AFG9001", 0.85, lane_id)
+    res = client.post(
+        f"/api/events/{ev['id']}/decision",
+        json={"action": "deny", "plate": "BFG-9001", "note": "確認拒放"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["plate"] == "BFG9001"
+    assert body["decision"] == "DENY"
+    assert body["note"] == "確認拒放（原辨識 AFG-9001）"

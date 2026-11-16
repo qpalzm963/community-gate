@@ -8,8 +8,33 @@ export const appState = reactive({
   alertSound: true,
   unackAlerts: 0,
   pendingEvents: [] as AccessEvent[],
+  dismissedPendingIds: [] as number[],
+  activePendingId: null as number | null,
   gateAnim: {} as Record<number, { text: string; ok: boolean; until: number }>,
 })
+
+export function dismissPending(id: number) {
+  if (!appState.dismissedPendingIds.includes(id)) {
+    appState.dismissedPendingIds.push(id)
+  }
+  if (appState.activePendingId === id) {
+    appState.activePendingId = null
+  }
+}
+
+export function reopenPending(ev?: AccessEvent) {
+  if (ev) {
+    if (!appState.pendingEvents.some((p) => p.id === ev.id)) {
+      appState.pendingEvents.unshift(ev)
+    }
+    appState.dismissedPendingIds = appState.dismissedPendingIds.filter((id) => id !== ev.id)
+    appState.activePendingId = ev.id
+    return
+  }
+  appState.dismissedPendingIds = []
+  appState.activePendingId = null
+  void refreshPendingAndAlerts()
+}
 
 let initialized = false
 
@@ -61,6 +86,10 @@ export function initWsListeners() {
   wsHub.on('access_event_updated', (raw) => {
     const ev = raw as unknown as AccessEvent
     appState.pendingEvents = appState.pendingEvents.filter((p) => p.id !== ev.id)
+    appState.dismissedPendingIds = appState.dismissedPendingIds.filter((id) => id !== ev.id)
+    if (appState.activePendingId === ev.id) {
+      appState.activePendingId = null
+    }
     void refreshPendingAndAlerts()
   })
 
