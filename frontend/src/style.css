@@ -254,10 +254,26 @@ body {
   transition: background-color var(--cg-duration) var(--cg-ease), color var(--cg-duration) var(--cg-ease);
 }
 
-:focus-visible {
+:focus-visible:not(.el-input__inner, .el-textarea__inner, .el-select__input) {
   outline: none;
   box-shadow: var(--cg-focus-ring);
   border-radius: var(--cg-radius-sm);
+}
+
+.el-input__inner:focus-visible,
+.el-textarea__inner:focus-visible,
+.el-select__input:focus-visible {
+  outline: none;
+}
+
+/* 瀏覽器自動填入 (autofill) 會在 .el-input__inner 內畫出藍底，與外層 wrapper 產生色塊落差 */
+.el-input__inner:-webkit-autofill,
+.el-input__inner:-webkit-autofill:hover,
+.el-input__inner:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--el-fill-color-blank, var(--cg-surface)) inset;
+  -webkit-text-fill-color: var(--cg-text);
+  caret-color: var(--cg-text);
+  transition: background-color 9999s ease-out 0s;
 }
 
 .text-muted { color: var(--cg-text-3); }
