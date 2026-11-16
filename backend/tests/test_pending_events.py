@@ -156,17 +156,20 @@ def test_failed_commit_removes_snapshots(auth_client, monkeypatch):
     client, tmp_path = auth_client
     lane_id = _in_lane_id(client)
     saved: list[str] = []
-    real_save = service.save_jpeg
 
-    def spy_save(*args, **kwargs):
-        rel = real_save(*args, **kwargs)
-        saved.append(rel)
-        return rel
+    def spy(real):
+        def wrapped(*args, **kwargs):
+            rel = real(*args, **kwargs)
+            saved.append(rel)
+            return rel
+
+        return wrapped
 
     def boom(*args, **kwargs):
         raise RuntimeError("db down")
 
-    monkeypatch.setattr(service, "save_jpeg", spy_save)
+    monkeypatch.setattr(service, "save_frame", spy(service.save_frame))
+    monkeypatch.setattr(service, "save_jpeg", spy(service.save_jpeg))
     monkeypatch.setattr("sqlalchemy.orm.Session.commit", boom)
 
     img = np.zeros((40, 60, 3), dtype=np.uint8)
@@ -183,17 +186,20 @@ def test_error_after_commit_keeps_snapshots(auth_client, monkeypatch):
     client, _ = auth_client
     lane_id = _in_lane_id(client)
     saved: list[str] = []
-    real_save = service.save_jpeg
 
-    def spy_save(*args, **kwargs):
-        rel = real_save(*args, **kwargs)
-        saved.append(rel)
-        return rel
+    def spy(real):
+        def wrapped(*args, **kwargs):
+            rel = real(*args, **kwargs)
+            saved.append(rel)
+            return rel
+
+        return wrapped
 
     def boom(*args, **kwargs):
         raise RuntimeError("serialize failed")
 
-    monkeypatch.setattr(service, "save_jpeg", spy_save)
+    monkeypatch.setattr(service, "save_frame", spy(service.save_frame))
+    monkeypatch.setattr(service, "save_jpeg", spy(service.save_jpeg))
     monkeypatch.setattr(service, "event_dict", boom)
 
     img = np.zeros((40, 60, 3), dtype=np.uint8)
@@ -226,8 +232,30 @@ def test_snapshot_survives_snapshot_dir_wipe(auth_client):
 
     res = client.get(ev["snapshot_url"])
     assert res.status_code == 200
-    assert res.headers["content-type"] == "image/jpeg"
-    assert client.get(ev["plate_crop_url"]).status_code == 200
+    assert res.headers["content-type"] == "image/webp"
+    crop = client.get(ev["plate_crop_url"])
+    assert crop.status_code == 200
+    assert crop.headers["content-type"] == "image/jpeg"
+
+
+def test_full_frame_is_compressed_but_plate_crop_keeps_quality(auth_client):
+    """整張畫面存成 WebP 並限寬 1280px 以節省資料庫空間；車牌特寫是判讀證據，維持 JPEG 不縮。"""
+    import cv2
+
+    client, _ = auth_client
+    lane_id = _in_lane_id(client)
+    rng = np.random.default_rng(0)
+    frame = rng.integers(0, 255, (1080, 1920, 3), dtype=np.uint8)
+    crop = rng.integers(0, 255, (60, 200, 3), dtype=np.uint8)
+    ev = service.handle_detection("CMP1234", 0.9, lane_id, frame=frame, crop=crop)
+
+    full = client.get(ev["snapshot_url"]).content
+    assert full[:4] == b"RIFF" and full[8:12] == b"WEBP"
+    assert cv2.imdecode(np.frombuffer(full, np.uint8), cv2.IMREAD_COLOR).shape[:2] == (720, 1280)
+
+    plate = client.get(ev["plate_crop_url"]).content
+    assert plate[:2] == b"\xff\xd8"  # JPEG
+    assert cv2.imdecode(np.frombuffer(plate, np.uint8), cv2.IMREAD_COLOR).shape[:2] == (60, 200)
 
 
 def test_same_second_snapshots_do_not_collide(auth_client):

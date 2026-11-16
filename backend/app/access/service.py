@@ -24,7 +24,7 @@ from ..models import (
     now,
 )
 from ..services.events import bus
-from ..services.snapshots import save_jpeg
+from ..services.snapshots import save_frame, save_jpeg
 from ..vision.plate import format_plate
 from .engine import Decision, decide, lane_vehicle_type
 
@@ -181,7 +181,7 @@ def handle_detection(
         if lane is None:
             raise AccessError(f"車道 {lane_id} 不存在")
         d: Decision = decide(db, plate, lane, at)
-        saved = (save_jpeg(frame, f"L{lane.id}_full", at, db=db), save_jpeg(crop, f"L{lane.id}_plate", at, db=db))
+        saved = (save_frame(frame, f"L{lane.id}_full", at, db=db), save_jpeg(crop, f"L{lane.id}_plate", at, db=db))
         ev = AccessEvent(
             lane_id=lane.id,
             direction=lane.direction,
@@ -320,7 +320,7 @@ def manual_open(
             note=note or "手動開閘",
             occurred_at=at,
             decided_at=at,
-            snapshot_path=save_jpeg(frame, f"L{lane.id}_manual", at, db=db),
+            snapshot_path=save_frame(frame, f"L{lane.id}_manual", at, db=db),
         )
         db.add(ev)
         db.flush()
