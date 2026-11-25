@@ -46,6 +46,9 @@ class WorkerOptions:
     recognition_fps: float = 5.0
     vote: VoteParams = field(default_factory=VoteParams)
     strict_format: bool = True
+    min_plate_width_ratio: float = 0.06  # 車牌框寬度佔畫面寬度最小比例（0 = 不限制）
+    primary_plate_only: bool = True  # 同影格有多張車牌時，僅針對面積最大（最近）的主車計票
+    roi: tuple[float, float, float, float] = (0.0, 0.0, 1.0, 1.0)  # (x1, y1, x2, y2) 正規化辨識區域
 
 
 class LaneWorker:
@@ -244,33 +247,67 @@ class LaneWorker:
                 self._stop.wait(backoff)
 
     # ------------------------------------------------------------------ 辨識
+    def _is_in_roi_and_sized(self, bbox: tuple[int, int, int, int], frame_w: int, frame_h: int) -> bool:
+        if frame_w <= 0 or frame_h <= 0:
+            return False
+        x1, y1, x2, y2 = bbox
+        bw = max(0, x2 - x1)
+        bh = max(0, y2 - y1)
+        if bw <= 0 or bh <= 0:
+            return False
+        if self.options.min_plate_width_ratio > 0 and (bw / frame_w) < self.options.min_plate_width_ratio:
+            return False
+        rx1, ry1, rx2, ry2 = self.options.roi
+        cx = ((x1 + x2) / 2.0) / frame_w
+        cy = ((y1 + y2) / 2.0) / frame_h
+        return rx1 <= cx <= rx2 and ry1 <= cy <= ry2
+
     def process_frame(self, frame: np.ndarray, ts: float | None = None) -> list[tuple[PlateDetection, str | None]]:
         """對單張影格做辨識 + 投票（擷取迴圈與測試共用）。"""
         recognizer = self._recognizer_factory()
         detections = recognizer.predict(frame)
+        fh, fw = frame.shape[:2]
         results: list[tuple[PlateDetection, str | None]] = []
+        candidates: list[tuple[int, PlateDetection, str]] = []
         overlay: list[OverlayBox] = []
+
         for det in detections:
             norm = normalize_ocr(det.text, strict=self.options.strict_format)
             plate = norm.plate if norm else None
             results.append((det, plate))
-            label = f"{format_plate(plate)} {det.confidence:.2f}" if plate else f"? {det.text}"
-            overlay.append(OverlayBox(det.bbox, label, plate is not None))
-            if plate is None:
-                continue
-            x1, y1, x2, y2 = det.bbox
-            confirmed = self.voter.add(plate, det.confidence, ts, payload=(frame, (x1, y1, x2, y2)))
-            if confirmed is not None:
-                best_frame, (bx1, by1, bx2, by2) = confirmed.best.payload
-                h, w = best_frame.shape[:2]
-                pad = 6
-                crop = best_frame[max(by1 - pad, 0) : min(by2 + pad, h), max(bx1 - pad, 0) : min(bx2 + pad, w)].copy()
-                self.last_plate = confirmed.plate
-                self.last_plate_at = time.time()
-                try:
-                    self._on_confirm(self.lane_id, confirmed, best_frame, crop)
-                except Exception:  # noqa: BLE001
-                    log.exception("on_confirm 失敗")
+            eligible = plate is not None and self._is_in_roi_and_sized(det.bbox, fw, fh)
+            if plate and eligible:
+                label = f"{format_plate(plate)} {det.confidence:.2f}"
+                x1, y1, x2, y2 = det.bbox
+                area = max(0, x2 - x1) * max(0, y2 - y1)
+                candidates.append((area, det, plate))
+            elif plate:
+                label = f"{format_plate(plate)} (skip)"
+            else:
+                label = f"? {det.text}"
+            overlay.append(OverlayBox(det.bbox, label, eligible))
+
+        if candidates:
+            # 面積大（離鏡頭最近）者優先；primary_plate_only 時只對主車計票，避免後車／旁車干擾
+            candidates.sort(key=lambda item: (item[0], item[1].confidence), reverse=True)
+            selected = candidates[:1] if self.options.primary_plate_only else candidates
+            for _area, det, plate in selected:
+                x1, y1, x2, y2 = det.bbox
+                confirmed = self.voter.add(plate, det.confidence, ts, payload=(frame, (x1, y1, x2, y2)))
+                if confirmed is not None:
+                    best_frame, (bx1, by1, bx2, by2) = confirmed.best.payload
+                    h, w = best_frame.shape[:2]
+                    pad = 6
+                    crop = best_frame[
+                        max(by1 - pad, 0) : min(by2 + pad, h), max(bx1 - pad, 0) : min(bx2 + pad, w)
+                    ].copy()
+                    self.last_plate = confirmed.plate
+                    self.last_plate_at = time.time()
+                    try:
+                        self._on_confirm(self.lane_id, confirmed, best_frame, crop)
+                    except Exception:  # noqa: BLE001
+                        log.exception("on_confirm 失敗")
+
         self._overlay = overlay
         self._overlay_ts = time.monotonic()
         return results

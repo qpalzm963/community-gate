@@ -22,6 +22,8 @@ DEFAULTS: dict[str, tuple[Any, type, str, float | None, float | None]] = {
     "overstay_grace_min": (15, int, "訪客逾時寬限（分鐘）", 0, 1440),
     "pending_timeout_min": (10, int, "待處理事件逾時自動結案（分鐘，0 = 不自動結案）", 0, 1440),
     "plate_strict_format": (True, bool, "只接受符合台灣車牌格式的辨識結果", None, None),
+    "plate_min_width_ratio": (0.06, float, "車牌最小寬度比例（0~0.5，低於門檻不計票）", 0.0, 0.5),
+    "plate_primary_only": (True, bool, "同畫面多張車牌時僅辨識主車（面積最大者）", None, None),
     "alert_sound": (True, bool, "警示時播放音效", None, None),
 }
 

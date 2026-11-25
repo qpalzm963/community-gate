@@ -30,6 +30,8 @@ def options_from_settings(values: dict | None = None) -> WorkerOptions:
             dedup_sec=float(s["dedup_sec"]),
         ),
         strict_format=bool(s["plate_strict_format"]),
+        min_plate_width_ratio=float(s["plate_min_width_ratio"]),
+        primary_plate_only=bool(s["plate_primary_only"]),
     )
 
 

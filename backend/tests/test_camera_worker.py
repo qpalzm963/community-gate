@@ -79,3 +79,73 @@ def test_annotated_jpeg_encodes_each_frame_once():
     worker.push_frame(np.full((480, 640, 3), 255, np.uint8))
     second = worker.annotated_jpeg()
     assert second is not None and second != first
+
+
+def test_min_plate_width_ratio_filters_distant_plates():
+    confirmed = []
+
+    class SmallPlateRec:
+        def predict(self, frame):
+            # 寬度僅 40px（在 1000px 畫面佔 4%，小於預設 6%）
+            return [PlateDetection(text="FAR-1234", confidence=0.95, bbox=(100, 100, 140, 120), det_confidence=0.95)]
+
+    worker = LaneWorker(
+        1,
+        "入口",
+        "",
+        lambda: SmallPlateRec(),
+        on_confirm=lambda lid, c, f, crop: confirmed.append(c.plate),
+        options=WorkerOptions(
+            vote=VoteParams(min_hits=2, window_sec=2.0, min_confidence=0.8, dedup_sec=30.0),
+            min_plate_width_ratio=0.06,
+        ),
+    )
+    frame = np.zeros((600, 1000, 3), dtype=np.uint8)
+    for i in range(4):
+        res = worker.process_frame(frame, ts=10.0 + i * 0.2)
+        assert res[0][1] == "FAR1234"
+    assert confirmed == []
+
+
+def test_primary_plate_only_and_roi_filter():
+    confirmed = []
+
+    class MultiPlateRec:
+        def predict(self, frame):
+            # 後車（較小）與前車（較大）同時出現在畫面內
+            return [
+                PlateDetection(text="BCK-1111", confidence=0.99, bbox=(100, 100, 200, 140), det_confidence=0.98),
+                PlateDetection(text="FRT-2222", confidence=0.90, bbox=(300, 300, 520, 390), det_confidence=0.95),
+            ]
+
+    worker = LaneWorker(
+        1,
+        "入口",
+        "",
+        lambda: MultiPlateRec(),
+        on_confirm=lambda lid, c, f, crop: confirmed.append(c.plate),
+        options=WorkerOptions(
+            vote=VoteParams(min_hits=3, window_sec=2.0, min_confidence=0.8, dedup_sec=30.0),
+            min_plate_width_ratio=0.05,
+            primary_plate_only=True,
+        ),
+    )
+    frame = np.zeros((600, 1000, 3), dtype=np.uint8)
+    for i in range(4):
+        worker.process_frame(frame, ts=20.0 + i * 0.2)
+    assert confirmed == ["FRT2222"]
+
+    # 測試 ROI 過濾：把主車排除在 ROI 之外時，只剩位於 ROI 內的 BCK-1111 會被計票
+    confirmed.clear()
+    worker.voter.reset()
+    worker.update_options(
+        WorkerOptions(
+            vote=VoteParams(min_hits=2, window_sec=2.0, min_confidence=0.8, dedup_sec=30.0),
+            min_plate_width_ratio=0.05,
+            primary_plate_only=True,
+            roi=(0.0, 0.0, 0.3, 0.4),
+        )
+    )
+    for i in range(3):
+        worker.process_frame(frame, ts=30.0 + i * 0.2)
+    assert confirmed == ["BCK1111"]
