@@ -2,13 +2,30 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Protocol
 
 import numpy as np
 
 log = logging.getLogger(__name__)
+
+
+def default_intra_threads() -> int:
+    """依 CPU 核心數計算單一 ONNX Session 的預設 intra-op 執行緒數。"""
+    cpus = os.cpu_count() or 2
+    return max(1, min(4, cpus // 2))
+
+
+def _build_session_options(intra_threads: int):
+    import onnxruntime as ort
+
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = max(1, intra_threads)
+    opts.inter_op_num_threads = 1
+    return opts
 
 
 @dataclass(frozen=True)
@@ -29,12 +46,24 @@ class FastAlprRecognizer:
     首次使用時才載入模型（首次執行會下載模型檔，之後離線可用）。
     """
 
-    def __init__(self, detector_model: str, ocr_model: str, detector_conf: float = 0.4):
+    def __init__(
+        self,
+        detector_model: str,
+        ocr_model: str,
+        detector_conf: float = 0.4,
+        intra_threads: int = 0,
+        max_concurrent: int = 2,
+    ):
         self._detector_model = detector_model
         self._ocr_model = ocr_model
         self._detector_conf = detector_conf
+        self._intra_threads = intra_threads if intra_threads > 0 else default_intra_threads()
+        self._max_concurrent = max_concurrent
+        self._sem = threading.Semaphore(max_concurrent) if max_concurrent > 0 else None
         self._alpr = None
         self._lock = threading.Lock()
+        self._warmup_lock = threading.Lock()
+        self._warmed_up = False
 
     def _ensure(self):
         if self._alpr is None:
@@ -42,21 +71,40 @@ class FastAlprRecognizer:
                 if self._alpr is None:
                     from fast_alpr import ALPR
 
-                    log.info("載入辨識模型 detector=%s ocr=%s", self._detector_model, self._ocr_model)
+                    sess_opts = _build_session_options(self._intra_threads)
+                    log.info(
+                        "載入辨識模型 detector=%s ocr=%s (intra_threads=%d, max_concurrent=%d)",
+                        self._detector_model,
+                        self._ocr_model,
+                        self._intra_threads,
+                        self._max_concurrent,
+                    )
                     self._alpr = ALPR(
                         detector_model=self._detector_model,
                         detector_conf_thresh=self._detector_conf,
+                        detector_sess_options=sess_opts,
                         ocr_model=self._ocr_model,
                         ocr_device="cpu",
+                        ocr_sess_options=sess_opts,
                     )
         return self._alpr
 
     def warmup(self) -> None:
-        self._ensure()
+        if self._warmed_up:
+            return
+        with self._warmup_lock:
+            if self._warmed_up:
+                return
+            self._ensure()
+            # 執行一次空白影格推論，讓 ONNX Runtime 完成記憶體與算子配置，避免首幀延遲
+            self.predict(np.zeros((384, 384, 3), dtype=np.uint8))
+            self._warmed_up = True
 
     def predict(self, frame: np.ndarray) -> list[PlateDetection]:
         alpr = self._ensure()
-        results = alpr.predict(frame)
+        guard = self._sem if self._sem is not None else nullcontext()
+        with guard:
+            results = alpr.predict(frame)
         out: list[PlateDetection] = []
         for r in results:
             if r.ocr is None or not r.ocr.text:
@@ -88,11 +136,28 @@ def get_recognizer() -> Recognizer:
                 from ..config import get_config
 
                 cfg = get_config()
-                _recognizer = FastAlprRecognizer(cfg.alpr_detector_model, cfg.alpr_ocr_model)
+                _recognizer = FastAlprRecognizer(
+                    cfg.alpr_detector_model,
+                    cfg.alpr_ocr_model,
+                    intra_threads=cfg.alpr_intra_threads,
+                    max_concurrent=cfg.alpr_max_concurrent,
+                )
     return _recognizer
+
+
+def warmup_recognizer() -> None:
+    """安全地預熱目前辨識器（若支援 warmup）。"""
+    rec = get_recognizer()
+    warmup = getattr(rec, "warmup", None)
+    if callable(warmup):
+        try:
+            warmup()
+        except Exception:  # noqa: BLE001
+            log.warning("辨識模型預熱失敗，將於首次辨識時重試", exc_info=True)
 
 
 def set_recognizer(rec: Recognizer | None) -> None:
     """測試或替換辨識引擎用。"""
     global _recognizer
-    _recognizer = rec
+    with _rec_lock:
+        _recognizer = rec

@@ -43,7 +43,7 @@ def create_app(start_background: bool | None = None) -> FastAPI:
             # 僅當至少有一個車道設定攝影機來源時，才在背景預先載入辨識模型（避免雲端無攝影機啟動時耗時下載）
             from .db import SessionLocal
             from .models import Lane
-            from .vision.recognizer import get_recognizer
+            from .vision.recognizer import warmup_recognizer
 
             def _has_camera_source() -> bool:
                 db = SessionLocal()
@@ -53,9 +53,7 @@ def create_app(start_background: bool | None = None) -> FastAPI:
                     db.close()
 
             if await asyncio.to_thread(_has_camera_source):
-                rec = get_recognizer()
-                if hasattr(rec, "warmup"):
-                    asyncio.get_running_loop().run_in_executor(None, rec.warmup)
+                asyncio.get_running_loop().run_in_executor(None, warmup_recognizer)
         yield
         stop.set()
         for t in tasks:

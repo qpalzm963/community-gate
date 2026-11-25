@@ -24,7 +24,7 @@ from ..schemas import LaneIn, ManualOpenIn, SimulateIn
 from ..services.events import bus
 from ..services.settings import SettingsError, settings_store
 from ..vision.plate import format_plate, normalize_ocr
-from ..vision.recognizer import get_recognizer
+from ..vision.recognizer import get_recognizer, warmup_recognizer
 
 log = logging.getLogger(__name__)
 router = APIRouter(tags=["system"])
@@ -328,6 +328,10 @@ async def ws_lane_camera_push(ws: WebSocket, lane_id: int, token: str):
     if worker is None:
         await ws.close(code=4404, reason="車道未啟動")
         return
+
+    # 手機推流車道的 source_url 通常為空，連線時於背景預熱辨識模型
+    if cfg.enable_workers:
+        asyncio.get_running_loop().run_in_executor(None, warmup_recognizer)
 
     q = bus.subscribe()
 

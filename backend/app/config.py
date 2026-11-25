@@ -28,9 +28,13 @@ class AppConfig(BaseSettings):
     session_max_age_sec: int = 12 * 3600
     # 是否啟動攝影機 workers（測試時關閉）
     enable_workers: bool = True
-    # 辨識模型
+    # 辨識模型與推論效能
     alpr_detector_model: str = "yolo-v9-t-384-license-plate-end2end"
     alpr_ocr_model: str = "cct-xs-v2-global-model"
+    # 每個 ONNX Session 的 intra-op 執行緒數（0 = 依 CPU 核心數自動配置）
+    alpr_intra_threads: int = 0
+    # 同時允許執行的推論數量上限（0 = 不限制）
+    alpr_max_concurrent: int = 2
     # 容器／首次部署可用環境變數自動建立預設管理員
     admin_username: str | None = None
     admin_password: str | None = None
