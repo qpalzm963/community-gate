@@ -181,11 +181,12 @@ def handle_detection(
         if lane is None:
             raise AccessError(f"車道 {lane_id} 不存在")
         d: Decision = decide(db, plate, lane, at)
+        actual_plate = d.matched_plate or plate
         saved = (save_frame(frame, f"L{lane.id}_full", at, db=db), save_jpeg(crop, f"L{lane.id}_plate", at, db=db))
         ev = AccessEvent(
             lane_id=lane.id,
             direction=lane.direction,
-            plate=plate,
+            plate=actual_plate,
             vehicle_type=d.vehicle_type,
             confidence=round(float(confidence), 4),
             category=d.category.value,
@@ -205,12 +206,12 @@ def handle_detection(
         alerts: list[Alert] = []
         if d.category == EventCategory.BLACKLIST:
             alerts.append(
-                create_alert(db, AlertType.BLACKLIST, f"{lane.name}：{format_plate(plate)} {d.message}", plate, ev.id, lane_id=lane.id)
+                create_alert(db, AlertType.BLACKLIST, f"{lane.name}：{format_plate(actual_plate)} {d.message}", actual_plate, ev.id, lane_id=lane.id)
             )
         elif d.decision == EventDecision.PENDING:
             alerts.append(
                 create_alert(
-                    db, AlertType.UNKNOWN_VEHICLE, f"{lane.name}：未登記車輛 {format_plate(plate)}", plate, ev.id, lane_id=lane.id
+                    db, AlertType.UNKNOWN_VEHICLE, f"{lane.name}：未登記車輛 {format_plate(actual_plate)}", actual_plate, ev.id, lane_id=lane.id
                 )
             )
         if d.allowed:
