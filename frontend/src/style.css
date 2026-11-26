@@ -345,21 +345,17 @@ html.dark .text-primary { color: var(--cg-text); }
    ========================================================================== */
 
 .plate-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 84px;
-  padding: 3px 10px;
+  display: inline-block;
+  padding: 2px 8px;
   border-radius: 5px;
-  border: 1px solid var(--cg-plate-edge);
-  box-shadow: inset 0 0 0 2px var(--cg-plate-bg), inset 0 0 0 3px rgb(17 20 24 / 0.12);
-  background: linear-gradient(180deg, var(--cg-plate-bg) 0%, color-mix(in srgb, var(--cg-plate-bg) 92%, var(--cg-plate-ink)) 100%);
+  border: 1.5px solid var(--cg-plate-edge);
+  background: var(--cg-plate-bg);
   font-family: var(--cg-font-mono);
-  font-weight: 600;
-  font-size: var(--cg-text-md);
-  letter-spacing: 0.14em;
+  font-weight: 700;
+  font-size: var(--cg-text-sm);
+  letter-spacing: 0.04em;
   color: var(--cg-plate-ink);
-  line-height: 1.3;
+  line-height: 1.5;
   white-space: nowrap;
 }
 
@@ -395,7 +391,7 @@ html.dark .text-primary { color: var(--cg-text); }
 /* 表頭只留底線，不要整塊灰底，列與列之間用髮絲線 */
 .el-table {
   --el-table-border-color: var(--cg-hairline);
-  --el-table-header-bg-color: transparent;
+  --el-table-header-bg-color: var(--cg-surface-2);
   --el-table-header-text-color: var(--cg-text-3);
   --el-table-row-hover-bg-color: color-mix(in srgb, var(--cg-gold) 9%, var(--cg-surface));
   --el-table-tr-bg-color: var(--cg-surface);
@@ -405,13 +401,13 @@ html.dark .text-primary { color: var(--cg-text); }
 }
 
 .el-table th.el-table__cell {
-  font-weight: 500;
+  font-weight: 600;
   font-size: var(--cg-text-xs);
-  letter-spacing: 0.12em;
+  letter-spacing: 0.02em;
 }
 
 .el-table .el-table__cell {
-  padding: 14px 0;
+  padding: 11px 0;
 }
 
 
@@ -446,8 +442,24 @@ html.dark .text-primary { color: var(--cg-text); }
 .el-tag {
   border-radius: var(--cg-radius-pill);
   border-color: transparent;
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  font-size: var(--cg-text-xs);
+  letter-spacing: 0;
+}
+
+/* 標籤前加小圓點，顏色隨文字色 */
+.el-tag .el-tag__content {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.el-tag .el-tag__content::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
 }
 
 /* 預設按鈕：白底髮絲線，hover 轉金色字，不用 Element 預設的藍色 hover */

@@ -253,6 +253,12 @@ export function fmtDateTime(val: string | null | undefined): string {
   return val.replace('T', ' ').slice(0, 19)
 }
 
+// 監控表格用：省略年份，與示意圖一致（MM-DD HH:MM:SS）
+export function fmtShortDateTime(val: string | null | undefined): string {
+  if (!val) return '—'
+  return val.replace('T', ' ').slice(5, 19)
+}
+
 export function toLocalIso(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`

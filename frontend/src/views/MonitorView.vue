@@ -48,7 +48,7 @@
           <el-table :data="recentEvents" stripe>
             <template #empty><EmptyState title="今日尚無進出紀錄" description="車輛經過車道後會即時顯示在這裡" /></template>
             <el-table-column label="時間" width="165">
-              <template #default="{ row }">{{ fmtDateTime(row.occurred_at) }}</template>
+              <template #default="{ row }">{{ fmtShortDateTime(row.occurred_at) }}</template>
             </el-table-column>
             <el-table-column prop="lane_name" label="車道" width="110" />
             <el-table-column label="方向" width="75">
@@ -101,7 +101,7 @@
             </el-table-column>
             <el-table-column prop="household_unit" label="戶別" width="120" />
             <el-table-column label="進場時間" width="180">
-              <template #default="{ row }">{{ fmtDateTime(row.entered_at) }}</template>
+              <template #default="{ row }">{{ fmtShortDateTime(row.entered_at) }}</template>
             </el-table-column>
             <el-table-column label="操作" width="120">
               <template #default="{ row }">
@@ -142,6 +142,7 @@ import {
   CATEGORY_LABEL,
   DIRECTION_LABEL,
   fmtDateTime,
+  fmtShortDateTime,
   VEHICLE_TYPE_LABEL,
   type AccessEvent,
   type Lane,
