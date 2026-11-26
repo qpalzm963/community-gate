@@ -1,0 +1,147 @@
+<!doctype html>
+<!-- 此檔由 docs/manual/build.py 從 docs/user-manual.md 產生，請勿直接修改 -->
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>社區出入管理使用說明書</title>
+<style>
+:root {
+  --bg: #f3f1ed; --surface: #ffffff; --sunken: #eceae5;
+  --border: #e6e1d8; --border-strong: #d2cbbf;
+  --text: #1c1917; --muted: #57534e;
+  --navy: #1b2a44; --navy-deep: #0e1626;
+  --gold: #b8955a; --gold-soft: #ece2cf; --gold-text: #7d5f2a;
+  --link: #1b2a44; --code-bg: #eceae5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --surface: #1a1f28; --sunken: #232935;
+    --border: #2c3340; --border-strong: #3b4454;
+    --text: #ece8e1; --muted: #a8a29e;
+    --navy: #c9d4e8; --navy-deep: #0b0f16;
+    --gold: #d1b07a; --gold-soft: #3a3122; --gold-text: #e0c391;
+    --link: #d1b07a; --code-bg: #232935;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b; --surface: #1a1f28; --sunken: #232935;
+  --border: #2c3340; --border-strong: #3b4454;
+  --text: #ece8e1; --muted: #a8a29e;
+  --navy: #c9d4e8; --navy-deep: #0b0f16;
+  --gold: #d1b07a; --gold-soft: #3a3122; --gold-text: #e0c391;
+  --link: #d1b07a; --code-bg: #232935;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.75 "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+}
+.layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+nav.side {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  background: #1b2a44; color: #e7e2d8; padding: 28px 18px 40px;
+}
+nav.side .brand { font-weight: 700; font-size: 17px; letter-spacing: .04em; color: #fff; }
+nav.side .brand small { display: block; font-weight: 400; font-size: 12px; color: #b8955a; letter-spacing: .12em; margin-top: 2px; }
+nav.side hr { border: 0; border-top: 1px solid rgba(255,255,255,.12); margin: 18px 0 12px; }
+nav.side a { display: block; color: #cfd6e3; text-decoration: none; font-size: 14px; padding: 5px 10px; border-radius: 6px; }
+nav.side a:hover { background: rgba(255,255,255,.08); color: #fff; }
+nav.side a.active { background: rgba(184,149,90,.22); color: #fff; }
+nav.side a.lvl1 { margin-top: 14px; color: #b8955a; font-weight: 600; font-size: 12px; letter-spacing: .12em; }
+main { max-width: 900px; padding: 48px 56px 96px; }
+main > h1:first-child {
+  font-size: 34px; margin: 0 0 8px; color: var(--navy); letter-spacing: .02em;
+}
+h1 { font-size: 26px; color: var(--navy); margin: 64px 0 8px; padding-top: 24px; border-top: 3px solid var(--gold); }
+h2 { font-size: 21px; color: var(--navy); margin: 44px 0 12px; }
+h3 { font-size: 17px; margin: 28px 0 8px; }
+a { color: var(--link); }
+hr { border: 0; border-top: 1px solid var(--border); margin: 32px 0; }
+blockquote {
+  margin: 16px 0; padding: 12px 16px; background: var(--gold-soft); color: var(--text);
+  border-left: 4px solid var(--gold); border-radius: 0 8px 8px 0;
+}
+blockquote p { margin: 0; }
+code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .88em; background: var(--code-bg); padding: 1px 6px; border-radius: 4px; }
+pre { background: #0e1626; color: #e7e2d8; padding: 16px 18px; border-radius: 10px; overflow-x: auto; line-height: 1.55; }
+pre code { background: none; padding: 0; color: inherit; font-size: 13.5px; }
+.table-wrap { overflow-x: auto; margin: 14px 0; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: var(--sunken); color: var(--navy); font-weight: 600; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+strong { color: var(--navy); }
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 5;
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+  border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+}
+.menu-btn { display: none; }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.side { position: fixed; inset: 0 auto 0 0; width: 280px; transform: translateX(-100%); transition: transform .2s ease; z-index: 10; }
+  nav.side.open { transform: none; box-shadow: 0 0 0 100vmax rgba(0,0,0,.4); }
+  .menu-btn {
+    display: inline-block; position: fixed; top: 14px; left: 16px; z-index: 5;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+    border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+  }
+  main { padding: 64px 16px 64px; }
+  main > h1:first-child { font-size: 26px; }
+}
+@media print {
+  nav.side, .theme-toggle, .menu-btn { display: none; }
+  .layout { display: block; }
+  main { max-width: none; padding: 0; }
+  body { background: #fff; color: #000; font-size: 12pt; }
+  h1 { page-break-before: always; }
+  main > h1:first-child { page-break-before: avoid; }
+  pre { background: #f3f1ed; color: #000; }
+  table, pre, blockquote { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<button class="menu-btn" type="button" aria-label="開啟目錄">☰ 目錄</button>
+<button class="theme-toggle" type="button">切換深淺色</button>
+<div class="layout">
+  <nav class="side" aria-label="目錄">
+    <div class="brand">社區出入管理系統<small>USER MANUAL</small></div>
+    <hr>
+{{NAV}}
+  </nav>
+  <main>
+{{BODY}}
+  </main>
+</div>
+<script>
+document.querySelectorAll('main table').forEach(function (t) {
+  var w = document.createElement('div'); w.className = 'table-wrap';
+  t.parentNode.insertBefore(w, t); w.appendChild(t);
+});
+var root = document.documentElement;
+try { var saved = localStorage.getItem('manual-theme'); if (saved) root.dataset.theme = saved; } catch (e) {}
+document.querySelector('.theme-toggle').addEventListener('click', function () {
+  var dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('manual-theme', root.dataset.theme); } catch (e) {}
+});
+var side = document.querySelector('nav.side');
+document.querySelector('.menu-btn').addEventListener('click', function () { side.classList.toggle('open'); });
+side.addEventListener('click', function (e) { if (e.target.tagName === 'A') side.classList.remove('open'); });
+var links = Array.prototype.slice.call(side.querySelectorAll('a'));
+var map = {}; links.forEach(function (a) { map[decodeURIComponent(a.hash.slice(1))] = a; });
+var io = new IntersectionObserver(function (entries) {
+  entries.forEach(function (en) {
+    if (en.isIntersecting && map[en.target.id]) {
+      links.forEach(function (a) { a.classList.remove('active'); });
+      map[en.target.id].classList.add('active');
+    }
+  });
+}, { rootMargin: '0px 0px -75% 0px' });
+document.querySelectorAll('main h1[id], main h2[id]').forEach(function (h) { io.observe(h); });
+</script>
+</body>
+</html>
