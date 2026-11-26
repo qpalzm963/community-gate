@@ -74,7 +74,14 @@
         <template #empty><EmptyState title="查無符合條件的紀錄" description="試著調整日期或篩選條件" /></template>
         <el-table-column label="截圖" width="80">
           <template #default="{ row }">
-            <img v-if="row.snapshot_url" :src="row.snapshot_url" alt="事件截圖" class="snap-thumb" loading="lazy" @click="preview = row" />
+            <img
+              v-if="row.plate_crop_url || row.snapshot_url"
+              :src="row.plate_crop_url || row.snapshot_url"
+              alt="事件截圖"
+              class="snap-thumb"
+              loading="lazy"
+              @click="preview = row"
+            />
             <span v-else class="text-muted">—</span>
           </template>
         </el-table-column>
@@ -109,7 +116,7 @@
         <el-table-column label="操作" width="104" fixed="right">
           <template #default="{ row }">
             <el-button v-if="row.decision === 'PENDING'" link type="warning" size="small" @click="reopenPending(row)">處理</el-button>
-            <el-button v-if="row.snapshot_url" link type="primary" size="small" @click="preview = row">檢視</el-button>
+            <el-button v-if="row.snapshot_url || row.plate_crop_url" link type="primary" size="small" @click="preview = row">檢視</el-button>
             <span v-else-if="row.decision !== 'PENDING'" class="text-muted">—</span>
           </template>
         </el-table-column>
@@ -170,8 +177,22 @@ const previewVisible = computed({
   },
 })
 
+function formatLocalDate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function defaultDateRange(): [string, string] {
+  const end = new Date()
+  const start = new Date(end)
+  start.setDate(end.getDate() - 6)
+  return [formatLocalDate(start), formatLocalDate(end)]
+}
+
 const filters = reactive({
-  dates: null as [string, string] | null,
+  dates: defaultDateRange() as [string, string] | null,
   plate: '',
   lane_id: undefined as number | undefined,
   vehicle_type: '',
@@ -216,7 +237,7 @@ function search() {
 }
 
 function reset() {
-  filters.dates = null
+  filters.dates = defaultDateRange()
   filters.plate = ''
   filters.lane_id = undefined
   filters.vehicle_type = ''
@@ -238,8 +259,8 @@ watch(
 )
 
 onMounted(async () => {
-  lanes.value = await api.get<Lane[]>('/api/lanes')
-  await load()
+  const [laneList] = await Promise.all([api.get<Lane[]>('/api/lanes'), load()])
+  lanes.value = laneList
 })
 </script>
 
@@ -248,7 +269,8 @@ onMounted(async () => {
   display: block;
   width: 56px;
   height: 32px;
-  object-fit: cover;
+  object-fit: contain;
+  background: var(--cg-surface-2, rgba(128, 128, 128, 0.1));
   border-radius: var(--cg-radius-sm);
   cursor: zoom-in;
 }

@@ -157,6 +157,7 @@ class Lane(Base):
 
 class AccessEvent(Base):
     __tablename__ = "access_events"
+    __table_args__ = (Index("ix_access_events_occurred_id", "occurred_at", "id"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     lane_id: Mapped[int | None] = mapped_column(ForeignKey("lanes.id", ondelete="SET NULL"), nullable=True, index=True)
     direction: Mapped[str] = mapped_column(String(4), default=LaneDirection.IN.value)

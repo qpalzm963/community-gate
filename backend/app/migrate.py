@@ -1,7 +1,7 @@
 """資料庫初始化與預設資料建立。"""
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select
 
 from .auth import create_user
 from .config import get_config
@@ -14,7 +14,12 @@ def upgrade_db(seed_defaults: bool = True) -> None:
     # 確保所有 ORM 模型皆已匯入註冊至 Base.metadata
     from . import models  # noqa: F401
 
-    Base.metadata.create_all(bind=get_engine())
+    engine = get_engine()
+    Base.metadata.create_all(bind=engine)
+    existing_idx = {idx["name"] for idx in inspect(engine).get_indexes("access_events")}
+    for idx in models.AccessEvent.__table__.indexes:
+        if idx.name not in existing_idx:
+            idx.create(bind=engine)
     if not seed_defaults:
         return
     cfg = get_config()
