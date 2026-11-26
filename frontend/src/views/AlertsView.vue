@@ -15,6 +15,13 @@
       </div>
     </div>
 
+    <section class="type-stats" aria-label="警示類型統計">
+      <div v-for="t in typeStats" :key="t.key" class="type-stat">
+        <span class="type-stat-label">{{ t.label }}</span>
+        <strong class="type-stat-val" :class="{ zero: t.count === 0 }">{{ t.count }}</strong>
+      </div>
+    </section>
+
     <el-card shadow="never">
       <el-skeleton v-if="!loaded" animated :rows="6" />
       <el-table v-else :data="alerts" stripe>
@@ -56,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ALERT_TYPE_LABEL, api, fmtDateTime, type AlertItem } from '../api'
 import { refreshPendingAndAlerts } from '../store'
@@ -65,6 +72,15 @@ import EmptyState from '../components/EmptyState.vue'
 
 const filterAck = ref<boolean | 'all'>(false)
 const alerts = ref<AlertItem[]>([])
+
+// 依目前列表（受上方篩選影響）統計各類型筆數
+const typeStats = computed(() =>
+  Object.entries(ALERT_TYPE_LABEL).map(([key, label]) => ({
+    key,
+    label,
+    count: alerts.value.filter((a) => a.type === key).length,
+  })),
+)
 
 // 首次載入完成前顯示骨架屏
 const loaded = ref(false)
@@ -101,3 +117,33 @@ onMounted(() => {
 })
 onUnmounted(() => unsubs.forEach((u) => u()))
 </script>
+
+<style scoped>
+.type-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--cg-space-3);
+  margin-bottom: var(--cg-space-4);
+}
+.type-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cg-space-1);
+  padding: var(--cg-space-3) var(--cg-space-4);
+  background: var(--cg-surface);
+  border: 1px solid var(--cg-hairline);
+  border-radius: var(--cg-radius-lg);
+}
+.type-stat-label {
+  font-size: var(--cg-text-xs);
+  color: var(--cg-text-3);
+}
+.type-stat-val {
+  font-family: var(--cg-font-serif);
+  font-size: var(--cg-text-2xl);
+  color: var(--cg-navy);
+}
+.type-stat-val.zero {
+  color: var(--cg-text-3);
+}
+</style>

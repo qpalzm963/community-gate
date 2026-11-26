@@ -43,6 +43,7 @@
           </el-form-item>
           <el-button type="primary" native-type="submit" :loading="loading" class="submit-btn">登入</el-button>
         </el-form>
+        <p v-if="errorMsg" class="login-error" role="alert">{{ errorMsg }}</p>
       </section>
     </main>
 
@@ -61,18 +62,20 @@ import { appState } from '../store'
 const router = useRouter()
 const loading = ref(false)
 const form = reactive({ username: '', password: '' })
+const errorMsg = ref('')
 
 async function submit() {
   if (!form.username.trim() || !form.password) {
     ElMessage.warning('請輸入帳號與密碼')
     return
   }
+  errorMsg.value = ''
   loading.value = true
   try {
     appState.user = await api.post<User>('/api/auth/login', form)
     void router.replace('/')
   } catch (err) {
-    ElMessage.error((err as Error).message)
+    errorMsg.value = (err as Error).message
   } finally {
     loading.value = false
   }
@@ -210,6 +213,15 @@ async function submit() {
   font-size: var(--cg-text-sm);
   color: var(--cg-text-3);
 }
+.login-error {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--cg-radius-sm);
+  background: color-mix(in srgb, var(--cg-danger) 12%, var(--cg-surface));
+  color: var(--cg-danger-text);
+  font-size: var(--cg-text-sm);
+}
+
 .submit-btn {
   width: 100%;
   margin-top: 8px;

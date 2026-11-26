@@ -72,6 +72,12 @@
       <el-skeleton v-if="!loaded" animated :rows="6" />
       <el-table v-else :data="items" stripe>
         <template #empty><EmptyState title="查無符合條件的紀錄" description="試著調整日期或篩選條件" /></template>
+        <el-table-column label="截圖" width="80">
+          <template #default="{ row }">
+            <img v-if="row.snapshot_url" :src="row.snapshot_url" alt="事件截圖" class="snap-thumb" loading="lazy" @click="preview = row" />
+            <span v-else class="text-muted">—</span>
+          </template>
+        </el-table-column>
         <el-table-column label="時間" width="164">
           <template #default="{ row }">{{ fmtDateTime(row.occurred_at) }}</template>
         </el-table-column>
@@ -236,3 +242,14 @@ onMounted(async () => {
   await load()
 })
 </script>
+
+<style scoped>
+.snap-thumb {
+  display: block;
+  width: 56px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: var(--cg-radius-sm);
+  cursor: zoom-in;
+}
+</style>
