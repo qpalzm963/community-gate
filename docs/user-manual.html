@@ -1,0 +1,997 @@
+<!doctype html>
+<!-- 此檔由 docs/manual/build.py 從 docs/user-manual.md 產生，請勿直接修改 -->
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>社區出入管理使用說明書</title>
+<style>
+:root {
+  --bg: #f3f1ed; --surface: #ffffff; --sunken: #eceae5;
+  --border: #e6e1d8; --border-strong: #d2cbbf;
+  --text: #1c1917; --muted: #57534e;
+  --navy: #1b2a44; --navy-deep: #0e1626;
+  --gold: #b8955a; --gold-soft: #ece2cf; --gold-text: #7d5f2a;
+  --link: #1b2a44; --code-bg: #eceae5;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12151b; --surface: #1a1f28; --sunken: #232935;
+    --border: #2c3340; --border-strong: #3b4454;
+    --text: #ece8e1; --muted: #a8a29e;
+    --navy: #c9d4e8; --navy-deep: #0b0f16;
+    --gold: #d1b07a; --gold-soft: #3a3122; --gold-text: #e0c391;
+    --link: #d1b07a; --code-bg: #232935;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12151b; --surface: #1a1f28; --sunken: #232935;
+  --border: #2c3340; --border-strong: #3b4454;
+  --text: #ece8e1; --muted: #a8a29e;
+  --navy: #c9d4e8; --navy-deep: #0b0f16;
+  --gold: #d1b07a; --gold-soft: #3a3122; --gold-text: #e0c391;
+  --link: #d1b07a; --code-bg: #232935;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.75 "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+}
+.layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); min-height: 100vh; }
+nav.side {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  background: #1b2a44; color: #e7e2d8; padding: 28px 18px 40px;
+}
+nav.side .brand { font-weight: 700; font-size: 17px; letter-spacing: .04em; color: #fff; }
+nav.side .brand small { display: block; font-weight: 400; font-size: 12px; color: #b8955a; letter-spacing: .12em; margin-top: 2px; }
+nav.side hr { border: 0; border-top: 1px solid rgba(255,255,255,.12); margin: 18px 0 12px; }
+nav.side a { display: block; color: #cfd6e3; text-decoration: none; font-size: 14px; padding: 5px 10px; border-radius: 6px; }
+nav.side a:hover { background: rgba(255,255,255,.08); color: #fff; }
+nav.side a.active { background: rgba(184,149,90,.22); color: #fff; }
+nav.side a.lvl1 { margin-top: 14px; color: #b8955a; font-weight: 600; font-size: 12px; letter-spacing: .12em; }
+main { max-width: 900px; padding: 48px 56px 96px; }
+main > h1:first-child {
+  font-size: 34px; margin: 0 0 8px; color: var(--navy); letter-spacing: .02em;
+}
+h1 { font-size: 26px; color: var(--navy); margin: 64px 0 8px; padding-top: 24px; border-top: 3px solid var(--gold); }
+h2 { font-size: 21px; color: var(--navy); margin: 44px 0 12px; }
+h3 { font-size: 17px; margin: 28px 0 8px; }
+a { color: var(--link); }
+hr { border: 0; border-top: 1px solid var(--border); margin: 32px 0; }
+blockquote {
+  margin: 16px 0; padding: 12px 16px; background: var(--gold-soft); color: var(--text);
+  border-left: 4px solid var(--gold); border-radius: 0 8px 8px 0;
+}
+blockquote p { margin: 0; }
+code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: .88em; background: var(--code-bg); padding: 1px 6px; border-radius: 4px; }
+pre { background: #0e1626; color: #e7e2d8; padding: 16px 18px; border-radius: 10px; overflow-x: auto; line-height: 1.55; }
+pre code { background: none; padding: 0; color: inherit; font-size: 13.5px; }
+.table-wrap { overflow-x: auto; margin: 14px 0; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { background: var(--sunken); color: var(--navy); font-weight: 600; white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+strong { color: var(--navy); }
+.theme-toggle {
+  position: fixed; top: 14px; right: 16px; z-index: 5;
+  border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+  border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+}
+.menu-btn { display: none; }
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  nav.side { position: fixed; inset: 0 auto 0 0; width: 280px; transform: translateX(-100%); transition: transform .2s ease; z-index: 10; }
+  nav.side.open { transform: none; box-shadow: 0 0 0 100vmax rgba(0,0,0,.4); }
+  .menu-btn {
+    display: inline-block; position: fixed; top: 14px; left: 16px; z-index: 5;
+    border: 1px solid var(--border-strong); background: var(--surface); color: var(--text);
+    border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer;
+  }
+  main { padding: 64px 16px 64px; }
+  main > h1:first-child { font-size: 26px; }
+}
+@media print {
+  nav.side, .theme-toggle, .menu-btn { display: none; }
+  .layout { display: block; }
+  main { max-width: none; padding: 0; }
+  body { background: #fff; color: #000; font-size: 12pt; }
+  h1 { page-break-before: always; }
+  main > h1:first-child { page-break-before: avoid; }
+  pre { background: #f3f1ed; color: #000; }
+  table, pre, blockquote { page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+<button class="menu-btn" type="button" aria-label="開啟目錄">☰ 目錄</button>
+<button class="theme-toggle" type="button">切換深淺色</button>
+<div class="layout">
+  <nav class="side" aria-label="目錄">
+    <div class="brand">社區出入管理系統<small>USER MANUAL</small></div>
+    <hr>
+<a class="lvl2" href="#系統簡介">系統簡介</a>
+<a class="lvl1" href="#第一篇-安裝與部署">第一篇 安裝與部署</a>
+<a class="lvl2" href="#1-系統需求">1. 系統需求</a>
+<a class="lvl2" href="#2-安裝與第一次啟動">2. 安裝與第一次啟動</a>
+<a class="lvl2" href="#3-啟動選項區網https">3. 啟動選項（區網、HTTPS）</a>
+<a class="lvl2" href="#4-設定車道攝影機與柵欄">4. 設定車道、攝影機與柵欄</a>
+<a class="lvl2" href="#5-docker雲端部署">5. Docker／雲端部署</a>
+<a class="lvl2" href="#6-備份帳號維護與-cli-指令">6. 備份、帳號維護與 CLI 指令</a>
+<a class="lvl1" href="#第二篇-日常操作">第二篇 日常操作</a>
+<a class="lvl2" href="#7-登入與畫面導覽">7. 登入與畫面導覽</a>
+<a class="lvl2" href="#8-即時監控">8. 即時監控</a>
+<a class="lvl2" href="#9-處理未登記車輛待確認視窗">9. 處理未登記車輛（待確認視窗）</a>
+<a class="lvl2" href="#10-住戶與車輛白名單">10. 住戶與車輛白名單</a>
+<a class="lvl2" href="#11-訪客管理">11. 訪客管理</a>
+<a class="lvl2" href="#12-黑名單管理">12. 黑名單管理</a>
+<a class="lvl2" href="#13-進出紀錄查詢與匯出">13. 進出紀錄查詢與匯出</a>
+<a class="lvl2" href="#14-警示中心">14. 警示中心</a>
+<a class="lvl2" href="#15-系統設定">15. 系統設定</a>
+<a class="lvl1" href="#附錄">附錄</a>
+<a class="lvl2" href="#a-放行判斷規則">A. 放行判斷規則</a>
+<a class="lvl2" href="#b-辨識與保留參數一覽">B. 辨識與保留參數一覽</a>
+<a class="lvl2" href="#c-狀態與名詞對照">C. 狀態與名詞對照</a>
+<a class="lvl2" href="#d-常見問題排解">D. 常見問題排解</a>
+  </nav>
+  <main>
+<h1 id="社區出入管理系統-使用說明書">社區出入管理系統 使用說明書</h1>
+<blockquote>
+<p>適用版本：單機版（<code>uv run gate serve</code>）與容器版（Docker）</p>
+<p>讀者：第一篇給 IT／安裝人員，第二篇給警衛與管理員。</p>
+</blockquote>
+<hr />
+<h2 id="系統簡介">系統簡介</h2>
+<p>本系統是給社區警衛室使用的出入管理工具，透過攝影機辨識車牌，自動判斷車輛能否進出：</p>
+<table>
+<thead>
+<tr>
+<th>車輛身分</th>
+<th>系統動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>住戶白名單車輛（在有效期內）</td>
+<td>自動開閘</td>
+</tr>
+<tr>
+<td>已登記訪客（在授權時段內）</td>
+<td>自動開閘，並記錄入場／離場</td>
+</tr>
+<tr>
+<td>黑名單車輛</td>
+<td>拒絕，發出黑名單警示</td>
+</tr>
+<tr>
+<td>未登記車輛</td>
+<td>跳出「待確認」視窗，由警衛決定：放行一次／登記為訪客／拒絕</td>
+</tr>
+</tbody>
+</table>
+<p>每筆進出都會留下紀錄與現場截圖，可依條件查詢並匯出 Excel 或 CSV。</p>
+<hr />
+<h1 id="第一篇-安裝與部署">第一篇　安裝與部署</h1>
+<h2 id="1-系統需求">1. 系統需求</h2>
+<table>
+<thead>
+<tr>
+<th>項目</th>
+<th>需求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>作業系統</td>
+<td>macOS、Linux、Windows（可執行 Python 3.12 即可）</td>
+</tr>
+<tr>
+<td>Python</td>
+<td>3.12，建議用 <a href="https://docs.astral.sh/uv/"><code>uv</code></a> 管理</td>
+</tr>
+<tr>
+<td>Node.js</td>
+<td>只有修改前端（<code>frontend/</code>）時才需要；<code>backend/app/static/</code> 已附建置好的畫面</td>
+</tr>
+<tr>
+<td>網路</td>
+<td>首次辨識車牌需連網下載辨識模型（約數十 MB），之後可完全離線</td>
+</tr>
+<tr>
+<td>攝影機</td>
+<td>RTSP 網路攝影機、USB 攝影機，或用手機當攝影機（測試用）</td>
+</tr>
+<tr>
+<td>柵欄</td>
+<td>可先用「模擬柵欄」；正式現場接 HTTP 繼電器（ESP32／Shelly）或 Modbus TCP 繼電器</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-安裝與第一次啟動">2. 安裝與第一次啟動</h2>
+<p>在專案根目錄執行：</p>
+<pre><code class="language-bash"># 1. 安裝後端套件（含車牌辨識用的 ONNX Runtime）
+uv sync
+
+# 2. 建立第一組登入帳號（會互動詢問帳號、密碼）
+uv run gate create-admin
+
+# 3. 啟動伺服器
+uv run gate serve
+</code></pre>
+<p>啟動後用瀏覽器開啟 <code>http://127.0.0.1:8000</code>，以剛建立的帳號登入。</p>
+<blockquote>
+<p><strong>注意</strong>：資料預設存在專案下的 <code>data/</code> 目錄（SQLite 資料庫 <code>data/app.db</code>、Session 金鑰、HTTPS 憑證）。請勿刪除此目錄，並定期備份（見第 6 節）。</p>
+</blockquote>
+<p>若要使用 Modbus TCP 繼電器，需額外安裝套件：</p>
+<pre><code class="language-bash">uv sync --extra modbus
+</code></pre>
+<h2 id="3-啟動選項區網https">3. 啟動選項（區網、HTTPS）</h2>
+<p><code>uv run gate serve</code> 的參數：</p>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--host</code></td>
+<td>監聽位址。預設 <code>127.0.0.1</code>（只有本機可連）；要讓區網其他電腦或手機連線，改成 <code>0.0.0.0</code></td>
+</tr>
+<tr>
+<td><code>--port</code></td>
+<td>埠號，預設 <code>8000</code></td>
+</tr>
+<tr>
+<td><code>--ssl</code></td>
+<td>啟用 HTTPS。手機瀏覽器必須在 HTTPS 下才能開相機，用手機當攝影機時一定要加</td>
+</tr>
+<tr>
+<td><code>--ssl-cert</code> / <code>--ssl-key</code></td>
+<td>使用自備憑證；未指定時系統會在 <code>data/</code> 自動產生自簽憑證</td>
+</tr>
+</tbody>
+</table>
+<p>常見組合：</p>
+<pre><code class="language-bash"># 只在警衛室這台電腦使用
+uv run gate serve
+
+# 區網內多台電腦／手機要連線，且要用手機鏡頭
+uv run gate serve --host 0.0.0.0 --port 8000 --ssl
+</code></pre>
+<p>使用自簽憑證時，瀏覽器會顯示「不安全／非私人連線」，請點「進階」→「繼續前往」。</p>
+<h2 id="4-設定車道攝影機與柵欄">4. 設定車道、攝影機與柵欄</h2>
+<p>登入後進入 <strong>系統設定 → 車道與硬體</strong>，按 <strong>新增車道</strong>。</p>
+<h3 id="41-車道欄位">4.1 車道欄位</h3>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>車道名稱</td>
+<td>例：大門入口、機車出口</td>
+</tr>
+<tr>
+<td>方向</td>
+<td><strong>進場</strong> 或 <strong>離場</strong>。影響訪客入場／離場狀態與在場車輛統計</td>
+</tr>
+<tr>
+<td>車道車種</td>
+<td>汽機車皆可／汽車專用／機車專用。專用車道辨識到的車輛會直接標記該車種</td>
+</tr>
+<tr>
+<td>攝影機來源</td>
+<td>見 4.2</td>
+</tr>
+<tr>
+<td>柵欄驅動</td>
+<td>模擬柵欄／HTTP 繼電器／Modbus TCP 繼電器，見 4.3</td>
+</tr>
+<tr>
+<td>驅動參數 (JSON)</td>
+<td>選擇實體繼電器時填寫</td>
+</tr>
+<tr>
+<td>未知車自動放行</td>
+<td>開啟後，未登記車輛不跳視窗、直接開閘。<strong>建議只在出口車道開啟</strong></td>
+</tr>
+<tr>
+<td>啟用車道</td>
+<td>關閉後該車道停止擷取影像</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-攝影機來源格式">4.2 攝影機來源格式</h3>
+<table>
+<thead>
+<tr>
+<th>來源</th>
+<th>填寫範例</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>RTSP 網路攝影機（正式現場）</td>
+<td><code>rtsp://帳號:密碼@192.168.1.20:554/stream1</code></td>
+</tr>
+<tr>
+<td>USB 攝影機</td>
+<td><code>0</code>（第一支）、<code>1</code>（第二支）</td>
+</tr>
+<tr>
+<td>Android「IP Webcam」App</td>
+<td><code>http://手機IP:8080/video</code></td>
+</tr>
+<tr>
+<td>iPhone「DroidCam」App</td>
+<td><code>http://手機IP:4747/video</code></td>
+</tr>
+<tr>
+<td>測試影片</td>
+<td>影片檔的本機路徑</td>
+</tr>
+<tr>
+<td>手機瀏覽器（免裝 App）</td>
+<td>不用填，改用「📱 手機鏡頭」QR Code，見 4.4</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>第三方 IP Cam App 是由伺服器主動去拉影像，只有伺服器跟手機在同一個區網時才能用；雲端部署請改用 QR Code 方式。</p>
+</blockquote>
+<p><strong>架設建議</strong>：台灣機車車牌小且位於車尾，機車道攝影機請低角度、近距離拍車尾。</p>
+<h3 id="43-柵欄驅動與參數">4.3 柵欄驅動與參數</h3>
+<p><strong>模擬柵欄</strong>：不需參數，只在畫面上顯示開閘，適合測試或雲端展示。</p>
+<p><strong>HTTP 繼電器</strong>（ESP32 自製韌體、Shelly 等）：</p>
+<pre><code class="language-json">{
+  &quot;url&quot;: &quot;http://192.168.1.50/relay/0?turn=on&amp;timer=2&quot;,
+  &quot;method&quot;: &quot;GET&quot;,
+  &quot;timeout&quot;: 3,
+  &quot;health_url&quot;: &quot;http://192.168.1.50/status&quot;
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>參數</th>
+<th>必填</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>url</code></td>
+<td>是</td>
+<td>觸發開閘的網址</td>
+</tr>
+<tr>
+<td><code>method</code></td>
+<td>否</td>
+<td>HTTP 方法，預設 <code>GET</code></td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td>否</td>
+<td>逾時秒數，預設 3</td>
+</tr>
+<tr>
+<td><code>health_url</code></td>
+<td>否</td>
+<td>健康檢查網址</td>
+</tr>
+<tr>
+<td><code>headers</code></td>
+<td>否</td>
+<td>額外 HTTP 標頭（例如驗證金鑰）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Modbus TCP 繼電器</strong>（需先 <code>uv sync --extra modbus</code>）：</p>
+<pre><code class="language-json">{ &quot;host&quot;: &quot;192.168.1.60&quot;, &quot;port&quot;: 502, &quot;unit&quot;: 1, &quot;coil&quot;: 0, &quot;pulse_sec&quot;: 1.0 }
+</code></pre>
+<p>系統以「coil 寫入 ON → 等待 <code>pulse_sec</code> 秒 → 寫入 OFF」的脈衝方式觸發柵欄。</p>
+<p>設定完成後，在車道列表按 <strong>測試開閘</strong> 確認柵欄有動作。開閘失敗時會在警示中心產生「柵欄異常」警示。</p>
+<h3 id="44-用手機當攝影機qr-code">4.4 用手機當攝影機（QR Code）</h3>
+<ol>
+<li>用 <code>--host 0.0.0.0 --ssl</code> 啟動伺服器。</li>
+<li>電腦瀏覽器用區網 IP 開啟系統（例：<code>https://192.168.x.x:8000</code>）。</li>
+<li>在 <strong>即時監控</strong> 的車道卡片，或 <strong>系統設定 → 車道與硬體</strong> 點 <strong>📱 手機鏡頭</strong>，畫面會顯示 QR Code。</li>
+<li>手機相機掃描 QR Code，若出現不安全提示選「進階 → 繼續前往」，再允許相機權限。</li>
+<li>手機畫面即成為該車道的辨識攝影機。下方工具列可切換 <strong>前／後鏡頭</strong>、開關 <strong>補光燈</strong>；辨識到車牌時會跳出結果卡片。</li>
+</ol>
+<h2 id="5-docker雲端部署">5. Docker／雲端部署</h2>
+<p>完整說明見 <a href="deployment.md">deployment.md</a>，以下為重點。</p>
+<pre><code class="language-bash">docker build -t community-gate:local .
+
+docker run --rm -p 8000:8000 \
+  -v &quot;$(pwd)/data:/app/data&quot; \
+  -e GATE_ADMIN_USERNAME=admin \
+  -e GATE_ADMIN_PASSWORD=&lt;至少6碼的密碼&gt; \
+  community-gate:local
+</code></pre>
+<p>常用環境變數：</p>
+<table>
+<thead>
+<tr>
+<th>變數</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DATABASE_URL</code></td>
+<td>外部 MySQL 8.4 連線字串；未設定則使用 SQLite</td>
+</tr>
+<tr>
+<td><code>GATE_ADMIN_USERNAME</code> / <code>GATE_ADMIN_PASSWORD</code></td>
+<td>首次啟動時自動建立的管理帳號</td>
+</tr>
+<tr>
+<td><code>GATE_SECRET_KEY</code></td>
+<td>Session 金鑰。雲端務必設定，否則每次重啟所有人都會被登出</td>
+</tr>
+<tr>
+<td><code>GATE_SESSION_MAX_AGE_SEC</code></td>
+<td>登入有效秒數，預設 43200（12 小時）</td>
+</tr>
+<tr>
+<td><code>GATE_DATA_DIR</code></td>
+<td>資料目錄，預設 <code>./data</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>實體繼電器通常位於社區內網，正式現場請使用警衛室單機版；雲端版建議搭配模擬柵欄做展示或遠端測試。</p>
+</blockquote>
+<h2 id="6-備份帳號維護與-cli-指令">6. 備份、帳號維護與 CLI 指令</h2>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uv run gate create-admin</code></td>
+<td>新增登入帳號（可加 <code>-u 帳號 -n 顯示名稱</code>）</td>
+</tr>
+<tr>
+<td><code>uv run gate reset-password &lt;帳號&gt;</code></td>
+<td>重設密碼（忘記密碼、無法登入時使用）</td>
+</tr>
+<tr>
+<td><code>uv run gate backup</code></td>
+<td>備份 <code>data/app.db</code> 為 <code>data/backup_*.db</code>（可加 <code>-o 路徑</code>）</td>
+</tr>
+<tr>
+<td><code>uv run gate serve</code></td>
+<td>啟動伺服器（參數見第 3 節）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>備份建議</strong>：每日以排程執行 <code>uv run gate backup</code>，並把備份檔複製到另一顆硬碟或雲端。備份只涵蓋 SQLite；使用 MySQL 時請以資料庫本身的備份機制處理。</p>
+<hr />
+<h1 id="第二篇-日常操作">第二篇　日常操作</h1>
+<h2 id="7-登入與畫面導覽">7. 登入與畫面導覽</h2>
+<ol>
+<li>開啟系統網址，輸入帳號、密碼登入。帳號由管理員在「系統設定 → 操作員帳號」建立。</li>
+<li>登入有效 12 小時，逾時需重新登入。</li>
+<li>所有帳號權限相同，可使用全部功能；請為每位警衛建立個人帳號，人工放行與手動開閘會記錄操作人。</li>
+</ol>
+<p>左側選單：</p>
+<table>
+<thead>
+<tr>
+<th>選單</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>即時監控</td>
+<td>車道即時畫面、今日統計、最新進出、目前在場車輛</td>
+</tr>
+<tr>
+<td>住戶白名單</td>
+<td>戶別與住戶車輛管理</td>
+</tr>
+<tr>
+<td>訪客管理</td>
+<td>預約／現場登記訪客、追蹤在場與逾時</td>
+</tr>
+<tr>
+<td>黑名單</td>
+<td>禁止進入的車輛</td>
+</tr>
+<tr>
+<td>進出紀錄</td>
+<td>查詢歷史紀錄、檢視截圖、匯出</td>
+</tr>
+<tr>
+<td>警示中心</td>
+<td>黑名單、未登記車、訪客逾時、設備異常等警示</td>
+</tr>
+<tr>
+<td>系統設定</td>
+<td>車道硬體、辨識參數、操作員帳號</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-即時監控">8. 即時監控</h2>
+<p>值班時的主畫面。</p>
+<p><strong>今日統計</strong>：今日進場、今日離場、目前在場車輛、在場／逾時訪客、今日拒絕、未處理警示。點「未處理警示」可直接跳到警示中心。</p>
+<p><strong>車道即時畫面</strong>：每個車道一張卡片，顯示即時影像與連線狀態。</p>
+<ul>
+<li><strong>手動開閘</strong>：不經辨識直接開閘（例如救護車、無牌車）。會留下一筆類別為「手動開閘」的紀錄。</li>
+<li><strong>手機鏡頭</strong>：顯示 QR Code，讓手機成為此車道的攝影機。</li>
+<li>畫面顯示「等待影像訊號」代表攝影機未連線。</li>
+</ul>
+<p><strong>最新進出紀錄</strong>：即時列出最新事件，有截圖的可點「檢視」看現場照與車牌特寫。</p>
+<p><strong>目前在場車輛</strong>：已進場、尚未離場的車輛。若車輛實際已離開但系統未記錄（例如離場時辨識失敗），按 <strong>手動結清離場</strong>。</p>
+<p><strong>測試辨識工具</strong>（選用）：到「系統設定 → 辨識與保留參數」開啟「在即時監控顯示測試辨識工具」後，車道卡片會多出：</p>
+<ul>
+<li><strong>模擬辨識</strong>：輸入車牌（例 <code>ABC-1234</code>），模擬攝影機辨識到這台車。</li>
+<li><strong>上傳圖片辨識</strong>：上傳車輛照片進行辨識。</li>
+</ul>
+<p>此開關只對目前這台電腦的瀏覽器有效。<strong>注意：模擬與上傳辨識會照常判斷並觸發開閘、留下紀錄</strong>，正式值班時請關閉。</p>
+<h2 id="9-處理未登記車輛待確認視窗">9. 處理未登記車輛（待確認視窗）</h2>
+<p>辨識到不在白名單、訪客名單、黑名單的車輛時，畫面會跳出 <strong>待確認｜未登記車輛</strong> 視窗，並播放提示音（可在系統設定關閉）。</p>
+<p>視窗內容：現場截圖、車道、辨識到的車牌、車牌特寫、車種、時間、辨識信心。</p>
+<h3 id="91-先確認車牌是否辨識錯誤">9.1 先確認車牌是否辨識錯誤</h3>
+<p>若辨識結果與實際車牌不同，按 <strong>修正車牌</strong>，輸入正確車牌後按 <strong>比對</strong>。系統會重新比對名單並顯示結果（例如「住戶車輛」「黑名單」）。按 <strong>還原</strong> 可回到原辨識結果。</p>
+<h3 id="92-選擇處理方式">9.2 選擇處理方式</h3>
+<table>
+<thead>
+<tr>
+<th>選項</th>
+<th>適用情境</th>
+<th>需填寫</th>
+<th>確認按鈕</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>放行一次</strong></td>
+<td>快遞臨停、已電話向住戶確認</td>
+<td>備註（選填）</td>
+<td>確認放行並開閘</td>
+</tr>
+<tr>
+<td><strong>登記為訪客並放行</strong></td>
+<td>會停留一段時間的訪客</td>
+<td>拜訪戶別、訪客姓名（必填）；電話、車種、授權時數（1／2／4／8／24 小時）、事由</td>
+<td>建立訪客並開閘</td>
+</tr>
+<tr>
+<td><strong>拒絕進入</strong></td>
+<td>未聯繫住戶、可疑車輛</td>
+<td>備註（選填，例：未事先聯繫住戶）</td>
+<td>確認拒絕</td>
+</tr>
+</tbody>
+</table>
+<p>選「登記為訪客」後，該車在授權時段內再次進出都會自動放行，離場時自動記為已離場。</p>
+<h3 id="93-多台車同時等待">9.3 多台車同時等待</h3>
+<p>視窗底部顯示 <strong>待處理佇列 N 筆</strong>。按 <strong>稍後處理</strong> 可先關閉視窗，之後到 <strong>進出紀錄</strong> 找到「待處理」的紀錄按 <strong>處理</strong> 重新開啟。</p>
+<blockquote>
+<p>超過「待處理事件逾時」時間（預設 10 分鐘）仍未處理的事件，系統會自動結案為「拒絕」（通常代表車輛已倒車離開），並在備註寫明原因。</p>
+</blockquote>
+<h2 id="10-住戶與車輛白名單">10. 住戶與車輛白名單</h2>
+<h3 id="101-新增戶別">10.1 新增戶別</h3>
+<p>按右上 <strong>新增戶別</strong>，填寫：</p>
+<ul>
+<li><strong>戶別</strong>（必填，例：<code>A棟5F-2</code>）</li>
+<li>住戶姓名、聯絡電話、備註</li>
+</ul>
+<h3 id="102-新增住戶車輛">10.2 新增住戶車輛</h3>
+<p>在戶別列按 <strong>加車</strong>（或展開後按 <strong>+ 新增車輛</strong>）：</p>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>車牌號碼</td>
+<td>必填，例 <code>ABC-1234</code>、<code>123-XYZ</code>。輸入時有無 <code>-</code> 皆可</td>
+</tr>
+<tr>
+<td>車種</td>
+<td>汽車／機車</td>
+</tr>
+<tr>
+<td>有效起日／迄日</td>
+<td>可不填。迄日不填代表永久有效；租客可填租約到期日</td>
+</tr>
+<tr>
+<td>啟用</td>
+<td>關閉後暫停此車的自動放行，資料保留</td>
+</tr>
+<tr>
+<td>備註</td>
+<td>例：第二台車、租客</td>
+</tr>
+</tbody>
+</table>
+<p>只有「啟用」且在有效期內的車輛會自動放行。</p>
+<h3 id="103-搜尋編輯與刪除">10.3 搜尋、編輯與刪除</h3>
+<ul>
+<li>上方搜尋框可依戶別、住戶姓名、車牌搜尋。</li>
+<li>每台車與每個戶別都可 <strong>編輯</strong>、<strong>刪除</strong>。暫時不讓某台車進出，建議用「停用」而非刪除，以保留資料。</li>
+</ul>
+<h2 id="11-訪客管理">11. 訪客管理</h2>
+<h3 id="111-登記方式">11.1 登記方式</h3>
+<table>
+<thead>
+<tr>
+<th>按鈕</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>預約登記</strong></td>
+<td>住戶事先告知訪客來訪時間</td>
+</tr>
+<tr>
+<td><strong>現場登記</strong></td>
+<td>訪客已到現場</td>
+</tr>
+</tbody>
+</table>
+<p>表單欄位：拜訪戶別（必填）、訪客姓名（必填）、聯絡電話、車牌號碼（步行訪客可留空）、車種、事由、<strong>授權時段</strong>（必填，起訖時間）。</p>
+<p>有車牌的訪客在授權時段內抵達時，會被自動辨識並放行。</p>
+<h3 id="112-分頁">11.2 分頁</h3>
+<table>
+<thead>
+<tr>
+<th>分頁</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>今日訪客</td>
+<td>今天的所有訪客</td>
+</tr>
+<tr>
+<td>目前在場</td>
+<td>已入場、尚未離場</td>
+</tr>
+<tr>
+<td>逾時未離場</td>
+<td>超過授權時段＋寬限時間仍在場</td>
+</tr>
+<tr>
+<td>即將來訪</td>
+<td>未來的預約</td>
+</tr>
+<tr>
+<td>全部紀錄</td>
+<td>所有訪客</td>
+</tr>
+</tbody>
+</table>
+<h3 id="113-操作">11.3 操作</h3>
+<table>
+<thead>
+<tr>
+<th>按鈕</th>
+<th>出現時機</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>標記入場</td>
+<td>狀態為「已預約」</td>
+<td>步行訪客或辨識失敗時手動標記</td>
+</tr>
+<tr>
+<td>標記離場</td>
+<td>狀態為「已入場」或「逾時未離場」</td>
+<td>手動標記離開</td>
+</tr>
+<tr>
+<td>編輯</td>
+<td>隨時</td>
+<td>修改資料、延長授權時段</td>
+</tr>
+<tr>
+<td>取消</td>
+<td>狀態為「已預約」</td>
+<td>取消預約</td>
+</tr>
+</tbody>
+</table>
+<h3 id="114-逾時未離場">11.4 逾時未離場</h3>
+<p>訪客超過授權結束時間＋寬限時間（預設 15 分鐘）仍未離場，系統每分鐘檢查一次，狀態會變成「逾時未離場」並在警示中心產生「訪客逾時」警示。處理方式：聯繫住戶確認，必要時 <strong>編輯</strong> 延長授權，或於訪客離開後 <strong>標記離場</strong>。</p>
+<h2 id="12-黑名單管理">12. 黑名單管理</h2>
+<p>按 <strong>加入黑名單</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>欄位</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>車牌</td>
+<td>必填</td>
+</tr>
+<tr>
+<td>車種</td>
+<td>不限／汽車／機車</td>
+</tr>
+<tr>
+<td>原因</td>
+<td>會顯示在警示內容中</td>
+</tr>
+<tr>
+<td>生效中</td>
+<td>關閉可暫停而不刪除</td>
+</tr>
+</tbody>
+</table>
+<p>黑名單優先於所有名單：即使同一車牌也登記為住戶或訪客，仍會被拒絕並產生「黑名單警示」。</p>
+<h2 id="13-進出紀錄查詢與匯出">13. 進出紀錄查詢與匯出</h2>
+<h3 id="131-查詢">13.1 查詢</h3>
+<p>篩選條件：日期區間、車牌關鍵字、車道、車種（汽車／機車／未知）、類別（住戶／訪客／黑名單／未登記／手動開閘）、結果（自動放行／人工放行／拒絕／待處理）。設定後按 <strong>查詢</strong>，按 <strong>重設</strong> 清除條件。每頁可顯示 20／50／100 筆。</p>
+<p>列表欄位：截圖、時間、車道、方向、車牌、車種、類別、處理結果、戶別、辨識信心、操作人、備註。</p>
+<ul>
+<li>點截圖或 <strong>檢視</strong> 可放大現場照與車牌特寫。</li>
+<li>結果為「待處理」的紀錄可按 <strong>處理</strong> 重新開啟待確認視窗。</li>
+</ul>
+<h3 id="132-匯出">13.2 匯出</h3>
+<p>按右上 <strong>匯出</strong>，選 <strong>Excel（.xlsx）</strong> 或 <strong>CSV</strong>。匯出內容依目前的篩選條件。</p>
+<blockquote>
+<p>截圖預設保存 90 天，超過會自動刪除；文字紀錄不會刪除。需要長期留存的截圖請自行另存。</p>
+</blockquote>
+<h2 id="14-警示中心">14. 警示中心</h2>
+<table>
+<thead>
+<tr>
+<th>警示類型</th>
+<th>觸發時機</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>黑名單警示</td>
+<td>辨識到生效中的黑名單車輛</td>
+</tr>
+<tr>
+<td>未登記車輛</td>
+<td>辨識到未登記車輛</td>
+</tr>
+<tr>
+<td>訪客逾時</td>
+<td>訪客超過授權時段＋寬限仍在場</td>
+</tr>
+<tr>
+<td>攝影機離線</td>
+<td>車道攝影機中斷</td>
+</tr>
+<tr>
+<td>柵欄異常</td>
+<td>開閘指令失敗</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>上方可切換 <strong>未處理／已處理／全部</strong>，並顯示各類型數量。</li>
+<li>處理完畢後按 <strong>標記已處理</strong>，或按 <strong>全部標記已處理</strong>。</li>
+<li>待確認事件被處理或逾時結案時，對應的警示會一併標記為已處理。</li>
+</ul>
+<h2 id="15-系統設定">15. 系統設定</h2>
+<h3 id="151-車道與硬體">15.1 車道與硬體</h3>
+<p>新增、設定、刪除車道，以及 <strong>測試開閘</strong>、<strong>📱 手機鏡頭</strong>。狀態欄顯示：連線中／離線／停用。詳見第 4 節。</p>
+<h3 id="152-辨識與保留參數">15.2 辨識與保留參數</h3>
+<p>調整後按 <strong>儲存設定（即時生效）</strong>，不需重新啟動。各參數說明見<a href="#b-辨識與保留參數一覽">附錄 B</a>。</p>
+<h3 id="153-操作員帳號">15.3 操作員帳號</h3>
+<ul>
+<li><strong>新增操作員</strong>：帳號（英數字）、顯示名稱（例：早班警衛）、密碼（至少 6 碼）。</li>
+<li><strong>停用／啟用</strong>：人員離職時請停用帳號。</li>
+<li><strong>重設密碼</strong>：為忘記密碼的同仁設定新密碼。</li>
+</ul>
+<hr />
+<h1 id="附錄">附錄</h1>
+<h2 id="a-放行判斷規則">A. 放行判斷規則</h2>
+<p>每次辨識到車牌，系統依下列順序判斷，命中即停止：</p>
+<ol>
+<li><strong>黑名單</strong>（生效中）→ 拒絕，發出黑名單警示</li>
+<li><strong>住戶車輛</strong>（啟用且在有效期內）→ 自動放行</li>
+<li><strong>訪客</strong>（未取消且在授權時段內）→ 自動放行
+   - 離場車道另外放行「已入場」或「逾時未離場」的訪客，即使授權時段已過</li>
+<li><strong>近似車牌修正</strong>：前三項都未命中時，若車牌與某一台住戶／訪客車牌只差 1 個容易誤讀的字元（例如 <code>8</code>↔<code>B</code>、<code>0</code>↔<code>D</code>、<code>5</code>↔<code>S</code>），且候選只有一台、也不與黑名單相近，則視為該車並自動放行。紀錄會註明「近似修正自 ○○○」</li>
+<li><strong>車道設定「未知車自動放行」</strong> → 自動放行</li>
+<li>以上皆否 → <strong>待處理</strong>，跳出待確認視窗</li>
+</ol>
+<p>另外，同一車道同一車牌在「去重秒數」內（預設 30 秒）只會記錄一次，避免車輛停在攝影機前重複觸發。</p>
+<h2 id="b-辨識與保留參數一覽">B. 辨識與保留參數一覽</h2>
+<table>
+<thead>
+<tr>
+<th>參數（畫面名稱）</th>
+<th>預設</th>
+<th>範圍</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>社區名稱</td>
+<td>社區出入管理系統</td>
+<td>—</td>
+<td>顯示於標題</td>
+</tr>
+<tr>
+<td>截圖保存天數</td>
+<td>90</td>
+<td>1–3650</td>
+<td>超過天數的截圖每日自動刪除</td>
+</tr>
+<tr>
+<td>每車道每秒辨識張數</td>
+<td>5</td>
+<td>0.5–30</td>
+<td>越高越即時，但越耗 CPU</td>
+</tr>
+<tr>
+<td>多幀投票：確認所需最少次數</td>
+<td>3</td>
+<td>1–20</td>
+<td>同一車牌需被辨識到幾次才算數，可降低誤判</td>
+</tr>
+<tr>
+<td>多幀投票：時間視窗（秒）</td>
+<td>2</td>
+<td>0.5–30</td>
+<td>投票計算的時間範圍</td>
+</tr>
+<tr>
+<td>多幀投票：平均信心值門檻</td>
+<td>0.8</td>
+<td>0–1</td>
+<td>平均信心低於此值不採用</td>
+</tr>
+<tr>
+<td>同車道同車牌去重秒數</td>
+<td>30</td>
+<td>1–3600</td>
+<td>此時間內同車牌不重複記錄</td>
+</tr>
+<tr>
+<td>訪客逾時寬限（分鐘）</td>
+<td>15</td>
+<td>0–1440</td>
+<td>授權結束後多久才算逾時</td>
+</tr>
+<tr>
+<td>待處理事件逾時自動結案（分鐘）</td>
+<td>10</td>
+<td>0–1440</td>
+<td>0 代表不自動結案</td>
+</tr>
+<tr>
+<td>只接受符合台灣車牌格式的辨識結果</td>
+<td>開</td>
+<td>—</td>
+<td>過濾格式不符的誤辨識</td>
+</tr>
+<tr>
+<td>車牌最小寬度比例</td>
+<td>0.06</td>
+<td>0–0.5</td>
+<td>車牌太小（太遠）不計票</td>
+</tr>
+<tr>
+<td>同畫面多張車牌時僅辨識主車</td>
+<td>開</td>
+<td>—</td>
+<td>只辨識畫面中面積最大的車牌，避免辨識到後方或路過車輛</td>
+</tr>
+<tr>
+<td>警示時播放音效</td>
+<td>開</td>
+<td>—</td>
+<td>出現待確認車輛時播放提示音，黑名單車輛播放較急促的警報音</td>
+</tr>
+</tbody>
+</table>
+<p><strong>調整建議</strong>：</p>
+<ul>
+<li>常把路過車輛記成紀錄 → 確認「僅辨識主車」已開，並調高「車牌最小寬度比例」。</li>
+<li>車輛已到閘門前但很久才辨識 → 調低「確認所需最少次數」或調高「每秒辨識張數」。</li>
+<li>誤辨識多 → 調高「平均信心值門檻」或「確認所需最少次數」。</li>
+</ul>
+<h2 id="c-狀態與名詞對照">C. 狀態與名詞對照</h2>
+<p><strong>進出類別</strong>：住戶、訪客、黑名單、未登記、手動開閘</p>
+<p><strong>處理結果</strong>：自動放行、人工放行、拒絕、待處理</p>
+<p><strong>訪客狀態</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>狀態</th>
+<th>意義</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>已預約</td>
+<td>已登記、尚未入場</td>
+</tr>
+<tr>
+<td>已入場</td>
+<td>已進入社區</td>
+</tr>
+<tr>
+<td>已離場</td>
+<td>已離開</td>
+</tr>
+<tr>
+<td>逾時未離場</td>
+<td>超過授權時段＋寬限仍在場</td>
+</tr>
+<tr>
+<td>已取消</td>
+<td>預約已取消</td>
+</tr>
+</tbody>
+</table>
+<p><strong>車道狀態</strong>：連線中（攝影機正常）、離線（攝影機中斷）、停用</p>
+<h2 id="d-常見問題排解">D. 常見問題排解</h2>
+<p><strong>Q：手機掃 QR Code 後無法開啟相機？</strong>
+手機瀏覽器只允許 HTTPS 網頁使用相機。請確認伺服器以 <code>--ssl</code> 啟動，且手機與伺服器在同一網路；看到憑證警告時選「進階 → 繼續前往」，並允許相機權限。</p>
+<p><strong>Q：第一次辨識很慢？</strong>
+首次辨識會下載並載入辨識模型（約數十 MB），完成後即可離線運作。</p>
+<p><strong>Q：車道顯示「離線」？</strong>
+檢查攝影機電源與網路、攝影機來源網址是否正確（可用 VLC 開啟同一個 RTSP 網址測試）。離線時警示中心會出現「攝影機離線」。</p>
+<p><strong>Q：按開閘柵欄沒動作？</strong>
+在系統設定按「測試開閘」，並到警示中心查看「柵欄異常」的錯誤訊息。常見原因：繼電器 IP 改變、<code>url</code> 填錯、伺服器與繼電器不在同一網段、Modbus 未安裝 <code>--extra modbus</code>。</p>
+<p><strong>Q：住戶車輛沒有自動放行？</strong>
+到住戶白名單確認該車為「啟用」、今天在有效期內，且車牌輸入正確。也可到進出紀錄查看系統實際辨識到的車牌與信心值。</p>
+<p><strong>Q：忘記密碼？</strong>
+請其他同仁在「系統設定 → 操作員帳號」按「重設密碼」；若無人能登入，由 IT 在伺服器執行 <code>uv run gate reset-password &lt;帳號&gt;</code>。</p>
+<p><strong>Q：雲端版每次重啟後都被登出？</strong>
+未設定 <code>GATE_SECRET_KEY</code>，每次重啟會產生新的金鑰。請設定一組固定的隨機字串。</p>
+  </main>
+</div>
+<script>
+document.querySelectorAll('main table').forEach(function (t) {
+  var w = document.createElement('div'); w.className = 'table-wrap';
+  t.parentNode.insertBefore(w, t); w.appendChild(t);
+});
+var root = document.documentElement;
+try { var saved = localStorage.getItem('manual-theme'); if (saved) root.dataset.theme = saved; } catch (e) {}
+document.querySelector('.theme-toggle').addEventListener('click', function () {
+  var dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  root.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('manual-theme', root.dataset.theme); } catch (e) {}
+});
+var side = document.querySelector('nav.side');
+document.querySelector('.menu-btn').addEventListener('click', function () { side.classList.toggle('open'); });
+side.addEventListener('click', function (e) { if (e.target.tagName === 'A') side.classList.remove('open'); });
+var links = Array.prototype.slice.call(side.querySelectorAll('a'));
+var map = {}; links.forEach(function (a) { map[decodeURIComponent(a.hash.slice(1))] = a; });
+var io = new IntersectionObserver(function (entries) {
+  entries.forEach(function (en) {
+    if (en.isIntersecting && map[en.target.id]) {
+      links.forEach(function (a) { a.classList.remove('active'); });
+      map[en.target.id].classList.add('active');
+    }
+  });
+}, { rootMargin: '0px 0px -75% 0px' });
+document.querySelectorAll('main h1[id], main h2[id]').forEach(function (h) { io.observe(h); });
+</script>
+</body>
+</html>
